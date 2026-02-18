@@ -14,10 +14,10 @@ export function Navbar() {
       return res.json();
     },
     retry: false,
-    staleTime: 30000,
+    staleTime: 5000, // Reduced to see changes faster
   });
 
-  const isLoggedIn = session?.user?.name || session?.user?.email;
+  const isLoggedIn = session?.user?.email;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border-color bg-surface-light/80 backdrop-blur-md">
@@ -32,15 +32,19 @@ export function Navbar() {
 
         {/* Nav links */}
         <nav className="hidden md:flex items-center gap-8">
-          <Link to="/" className="text-sm font-medium text-text-secondary hover:text-blue-600 transition-colors">
-            Para Terapeutas
-          </Link>
-          <Link to="/" className="text-sm font-medium text-text-secondary hover:text-blue-600 transition-colors">
-            Para Pacientes
-          </Link>
-          <Link to="/" className="text-sm font-medium text-text-secondary hover:text-blue-600 transition-colors">
-            Precios
-          </Link>
+          {!isLoggedIn && (
+            <>
+              <Link to="/" className="text-sm font-medium text-text-secondary hover:text-blue-600 transition-colors">
+                Para Terapeutas
+              </Link>
+              <Link to="/" className="text-sm font-medium text-text-secondary hover:text-blue-600 transition-colors">
+                Para Pacientes
+              </Link>
+              <Link to="/pricing" className="text-sm font-medium text-text-secondary hover:text-blue-600 transition-colors">
+                Precios
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* Right side */}
@@ -67,7 +71,7 @@ export function Navbar() {
   );
 }
 
-function LoggedInSection({ session }: { session: { user: { name?: string; email?: string; image?: string } } }) {
+function LoggedInSection({ session }: { session: any }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -82,9 +86,16 @@ function LoggedInSection({ session }: { session: { user: { name?: string; email?
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const user = session.user;
-  const displayName = user.name || user.email || "Usuario";
-  const initials = displayName.charAt(0).toUpperCase();
+  const user = session?.user;
+  console.log("Navbar session user:", user);
+  const displayName = user?.name || user?.email || "Usuario";
+  const initials = displayName.charAt(0).toUpperCase() || "?";
+  const avatarImage = user?.image;
+  const userRole = user?.role === "admin"
+    ? "Administrador"
+    : user?.role === "professional"
+      ? "Profesional"
+      : "Paciente";
 
   const handleLogout = async () => {
     await fetch(`${SERVER_URL}/api/logout`, { method: "POST", credentials: "include" });
@@ -102,41 +113,53 @@ function LoggedInSection({ session }: { session: { user: { name?: string; email?
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center gap-3 pl-4 border-l border-border-color outline-none"
+          className="flex items-center gap-3 pl-4 border-l border-border-color outline-none group"
         >
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-text-main">{displayName}</p>
-            <p className="text-xs text-text-secondary">Paciente</p>
+            <p className="text-sm font-bold text-text-main group-hover:text-blue-600 transition-colors">{displayName}</p>
+            <p className="text-xs text-text-secondary">{userRole}</p>
           </div>
-          {user.image ? (
+          {avatarImage ? (
             <div
-              className="bg-center bg-no-repeat bg-cover rounded-full size-10 border-2 border-blue-600/20"
-              style={{ backgroundImage: `url("${user.image}")` }}
+              className="bg-center bg-no-repeat bg-cover rounded-full size-10 border-2 border-blue-600/20 group-hover:border-blue-600 transition-all"
+              style={{ backgroundImage: `url("${avatarImage}")` }}
             />
           ) : (
-            <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600 border-2 border-blue-600/20">
+            <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-600 border-2 border-blue-600/20 group-hover:border-blue-600 transition-all">
               {initials}
             </div>
           )}
-          <span className="material-symbols-outlined text-text-secondary text-sm">
+          <span className="material-symbols-outlined text-text-secondary text-sm group-hover:text-blue-600 transition-colors">
             {dropdownOpen ? "expand_less" : "expand_more"}
           </span>
         </button>
 
         {/* Dropdown menu */}
         {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-2 w-48 bg-surface-light rounded-lg shadow-lg border border-border-color py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="absolute right-0 top-full mt-2 w-48 bg-surface-light rounded-lg shadow-lg border border-border-color py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden">
             <Link
               to="/profile"
               onClick={() => setDropdownOpen(false)}
-              className="block px-4 py-2 text-sm text-blue-600 bg-primary-light font-medium flex items-center gap-2"
+              activeProps={{ className: "text-blue-600 font-bold bg-blue-50/50" }}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors"
             >
               <span className="material-symbols-outlined text-lg">person</span>
               Mi Perfil
             </Link>
+            {user?.role === "professional" && (
+              <Link
+                to="/dashboard/professional"
+                onClick={() => setDropdownOpen(false)}
+                activeProps={{ className: "text-blue-600 font-bold bg-blue-50/50" }}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">dashboard</span>
+                Panel Profesional
+              </Link>
+            )}
             <a
               href="#"
-              className="block px-4 py-2 text-sm text-text-main hover:bg-background-light transition-colors flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors"
             >
               <span className="material-symbols-outlined text-lg">calendar_month</span>
               Mis Sesiones
@@ -144,7 +167,7 @@ function LoggedInSection({ session }: { session: { user: { name?: string; email?
             <div className="border-t border-border-color my-1" />
             <button
               onClick={handleLogout}
-              className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               <span className="material-symbols-outlined text-lg">logout</span>
               Cerrar Sesión

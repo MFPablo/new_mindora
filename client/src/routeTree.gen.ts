@@ -10,13 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OnboardingStep3RouteImport } from './routes/onboarding/step-3'
+import { Route as OnboardingStep2RouteImport } from './routes/onboarding/step-2'
+import { Route as OnboardingStep1RouteImport } from './routes/onboarding/step-1'
+import { Route as DashboardProfessionalRouteImport } from './routes/dashboard/professional'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -24,9 +36,19 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PricingRoute = PricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -34,39 +56,121 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingStep3Route = OnboardingStep3RouteImport.update({
+  id: '/onboarding/step-3',
+  path: '/onboarding/step-3',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingStep2Route = OnboardingStep2RouteImport.update({
+  id: '/onboarding/step-2',
+  path: '/onboarding/step-2',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingStep1Route = OnboardingStep1RouteImport.update({
+  id: '/onboarding/step-1',
+  path: '/onboarding/step-1',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardProfessionalRoute = DashboardProfessionalRouteImport.update({
+  id: '/dashboard/professional',
+  path: '/dashboard/professional',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/dashboard/professional': typeof DashboardProfessionalRoute
+  '/onboarding/step-1': typeof OnboardingStep1Route
+  '/onboarding/step-2': typeof OnboardingStep2Route
+  '/onboarding/step-3': typeof OnboardingStep3Route
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/dashboard/professional': typeof DashboardProfessionalRoute
+  '/onboarding/step-1': typeof OnboardingStep1Route
+  '/onboarding/step-2': typeof OnboardingStep2Route
+  '/onboarding/step-3': typeof OnboardingStep3Route
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/dashboard/professional': typeof DashboardProfessionalRoute
+  '/onboarding/step-1': typeof OnboardingStep1Route
+  '/onboarding/step-2': typeof OnboardingStep2Route
+  '/onboarding/step-3': typeof OnboardingStep3Route
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/profile' | '/signup'
+  fullPaths:
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/pricing'
+    | '/profile'
+    | '/reset-password'
+    | '/signup'
+    | '/dashboard/professional'
+    | '/onboarding/step-1'
+    | '/onboarding/step-2'
+    | '/onboarding/step-3'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/profile' | '/signup'
-  id: '__root__' | '/' | '/login' | '/profile' | '/signup'
+  to:
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/pricing'
+    | '/profile'
+    | '/reset-password'
+    | '/signup'
+    | '/dashboard/professional'
+    | '/onboarding/step-1'
+    | '/onboarding/step-2'
+    | '/onboarding/step-3'
+  id:
+    | '__root__'
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/pricing'
+    | '/profile'
+    | '/reset-password'
+    | '/signup'
+    | '/dashboard/professional'
+    | '/onboarding/step-1'
+    | '/onboarding/step-2'
+    | '/onboarding/step-3'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  PricingRoute: typeof PricingRoute
   ProfileRoute: typeof ProfileRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  DashboardProfessionalRoute: typeof DashboardProfessionalRoute
+  OnboardingStep1Route: typeof OnboardingStep1Route
+  OnboardingStep2Route: typeof OnboardingStep2Route
+  OnboardingStep3Route: typeof OnboardingStep3Route
 }
 
 declare module '@tanstack/react-router' {
@@ -78,11 +182,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -92,6 +210,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -99,14 +224,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding/step-3': {
+      id: '/onboarding/step-3'
+      path: '/onboarding/step-3'
+      fullPath: '/onboarding/step-3'
+      preLoaderRoute: typeof OnboardingStep3RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding/step-2': {
+      id: '/onboarding/step-2'
+      path: '/onboarding/step-2'
+      fullPath: '/onboarding/step-2'
+      preLoaderRoute: typeof OnboardingStep2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding/step-1': {
+      id: '/onboarding/step-1'
+      path: '/onboarding/step-1'
+      fullPath: '/onboarding/step-1'
+      preLoaderRoute: typeof OnboardingStep1RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/professional': {
+      id: '/dashboard/professional'
+      path: '/dashboard/professional'
+      fullPath: '/dashboard/professional'
+      preLoaderRoute: typeof DashboardProfessionalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  PricingRoute: PricingRoute,
   ProfileRoute: ProfileRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  DashboardProfessionalRoute: DashboardProfessionalRoute,
+  OnboardingStep1Route: OnboardingStep1Route,
+  OnboardingStep2Route: OnboardingStep2Route,
+  OnboardingStep3Route: OnboardingStep3Route,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

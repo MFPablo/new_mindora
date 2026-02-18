@@ -51,15 +51,31 @@ export const authConfig: AuthConfig = {
       console.log("signIn callback - user:", user?.email);
       return true;
     },
-    async session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
+    async session({ session, token }: any) {
+      if (session.user && (token.sub || token.id)) {
+        const userId = (token.sub || token.id) as string;
+        // Fetch latest data from DB to avoid JWT staleness
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { image: true, role: true, name: true },
+        });
+
+        console.log(`[AUTH SESSION] Fetching for ${userId}. Image in DB: ${user?.image}`);
+
+        if (user) {
+          session.user.image = user.image;
+          session.user.role = user.role;
+          session.user.name = user.name;
+        }
+        session.user.id = userId;
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user }: any) {
       if (user) {
-        token.id = user.id;
+        token.sub = user.id;
+        token.image = user.image;
+        token.role = user.role;
       }
       return token;
     },

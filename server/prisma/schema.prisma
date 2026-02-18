@@ -13,6 +13,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PromoKeyType {
+  FREE_15_DAYS
+  DISCOUNT_20
+  DISCOUNT_50
+  FREE_MONTH
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -21,11 +28,54 @@ model User {
   image         String?
   password      String?
   phone         String?
+  address       String?
+  specialty     String?
+  onboardingStep Int      @default(0)
+  isProfessionalActive Boolean @default(false)
+  workingHours  Json?
   role          String    @default("patient")
   accounts      Account[]
   sessions      Session[]
+  promoRedemptions PromoKeyRedemption[]
+  transactions  Transaction[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Float
+  currency  String   @default("USD")
+  status    String   @default("COMPLETED")
+  concept   String?  // e.g., "Plan Premium Anual"
+  plan      String?  // e.g., "professional_monthly"
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PromoKey {
+  id        String       @id @default(cuid())
+  key       String       @unique
+  type      PromoKeyType
+  startDate DateTime
+  endDate   DateTime
+  uses      Int
+  used      Int          @default(0)
+  redemptions PromoKeyRedemption[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model PromoKeyRedemption {
+  id         String   @id @default(cuid())
+  userId     String
+  promoKeyId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoKey   PromoKey @relation(fields: [promoKeyId], references: [id], onDelete: Cascade)
+  redeemedAt DateTime @default(now())
+
+  @@unique([userId, promoKeyId])
 }
 
 model Account {
@@ -65,4 +115,14 @@ model VerificationToken {
   expires    DateTime
 
   @@id([identifier, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
 }

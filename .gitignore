@@ -40,3 +40,10 @@ pnpm-debug.log*
 # Bun
 bun.lockb
 .turbo
+
+# Playwright
+test-results/*
+# Ignore all the playwright report files
+playwright-report/*
+test-results/.last-run.json
+playwright-report/index.html

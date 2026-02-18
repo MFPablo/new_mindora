@@ -45,7 +45,7 @@ export const app = new Hono<{
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 .post("/api/signup", zValidator("json", signupSchema) as any, async (c) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = c.req.valid("json" as any) as SignupInput;
+  const data = c.req.valid("json" as never) as SignupInput;
   
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({
@@ -214,9 +214,9 @@ export const app = new Hono<{
 
   // Upload to Cloudinary
   const uploadData = new FormData();
-  uploadData.append("file", file);
+  uploadData.append("file", file as any);
   uploadData.append("upload_preset", "ml_default");
-  uploadData.append("api_key", apiKey);
+  uploadData.append("api_key", apiKey as string);
   uploadData.append("folder", "mindora/avatars");
 
   // Generate signature for signed upload

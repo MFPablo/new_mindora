@@ -1,4 +1,4 @@
-import { useNavigate, getRouteApi, createFileRoute } from "@tanstack/react-router";
+import { getRouteApi, createFileRoute } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";

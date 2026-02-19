@@ -4,6 +4,8 @@ import { zValidator } from "@hono/zod-validator";
 import { signupSchema, type ApiResponse, type SignupInput } from "shared";
 import { authHandler, initAuthConfig, verifyAuth } from "@hono/auth-js";
 import { authConfig, prisma } from "./auth";
+import { logger } from "./logger";
+import { pinoLogger } from "hono-pino";
 
 export const app = new Hono<{
   Variables: {
@@ -19,6 +21,12 @@ export const app = new Hono<{
   .use("*", initAuthConfig((c) => authConfig))
   // @ts-ignore
   .use("/auth/*", authHandler())
+  .use("*", pinoLogger({
+    pino: logger,
+    http: {
+      reqId: () => crypto.randomUUID(),
+    },
+  }))
 
   .get("/", (c) => {
     return c.text("Hello Hono!");
@@ -35,37 +43,54 @@ export const app = new Hono<{
 
   // Middleware to verify authentication and extract user info
   .use("/api/*", async (c, next) => {
-    // Skip auth for signup and login
-    if (c.req.path === "/api/signup" || c.req.path === "/api/login" || c.req.path.includes("/public")) {
+    // Signup and login are always public and don't need user context
+    if (c.req.path === "/api/signup" || c.req.path === "/api/login") {
       return await next();
     }
 
+    const isPublicRoute = c.req.path.includes("/public");
+
     const { decode } = await import("@auth/core/jwt");
     const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    
-    if (!match) {
+    // Detect Auth.js or NextAuth.js tokens (handling __Secure- prefix)
+    const tokenMatch = cookie.match(/((?:__Secure-)?(?:authjs|next-auth)\.session-token)=([^;]+)/);
+
+    if (!tokenMatch || !tokenMatch[1] || !tokenMatch[2]) {
+      if (isPublicRoute) return await next();
       return c.json({ success: false, message: "No autenticado" }, 401);
     }
 
+    const tokenName = tokenMatch[1];
+    const tokenValue = tokenMatch[2];
+    const secret = process.env.AUTH_SECRET;
+
+    if (!secret) {
+      logger.error("AUTH_SECRET is not defined");
+      if (isPublicRoute) return await next();
+      return c.json({ success: false, message: "Error de configuración del servidor" }, 500);
+    }
+
     try {
-      const token = await decode({ 
-        token: match[1], 
-        secret: process.env.AUTH_SECRET!, 
-        salt: "authjs.session-token" 
+      const token = await decode({
+        token: tokenValue,
+        secret: secret,
+        // The salt MUST match the cookie name for decode to work
+        salt: tokenName
       });
 
       if (!token?.sub) {
+        if (isPublicRoute) return await next();
         return c.json({ success: false, message: "Token inválido" }, 401);
       }
 
-      // Fetch user role from DB to ensure it's up to date and valid
+      // Fetch user role from DB
       const user = await prisma.user.findUnique({
         where: { id: token.sub },
         select: { id: true, role: true }
       });
 
       if (!user) {
+        if (isPublicRoute) return await next();
         return c.json({ success: false, message: "Usuario no encontrado" }, 404);
       }
 
@@ -75,7 +100,8 @@ export const app = new Hono<{
 
       return await next();
     } catch (error) {
-      console.error("Auth middleware error:", error);
+      if (isPublicRoute) return await next();
+      logger.error({ error }, "Auth middleware error");
       return c.json({ success: false, message: "Error de autenticación" }, 401);
     }
   })
@@ -83,17 +109,17 @@ export const app = new Hono<{
   // Role-based helper
   .use("/api/patient/*", async (c, next) => {
     const role = c.get("userRole" as any);
-    if (role !== "patient") {
-      return c.json({ success: false, message: "Acceso denegado: Se requiere rol de paciente" }, 403);
+    if (role !== "patient" && role !== "professional") {
+      return c.json({ success: false, message: "Acceso denegado: Se requiere rol de paciente o profesional" }, 403);
     }
     return await next();
   })
   .use("/api/professional/*", async (c, next) => {
     // Allow GET access to appointments for patients (for booking)
     if (c.req.path.includes("/public") || (c.req.method === "GET" && c.req.path.includes("/appointments"))) {
-       return await next();
+      return await next();
     }
-    
+
     const role = c.get("userRole" as any);
     if (role !== "professional") {
       return c.json({ success: false, message: "Acceso denegado: Se requiere rol de profesional" }, 403);
@@ -135,6 +161,7 @@ export const app = new Hono<{
       });
 
       console.log("User registered:", newUser);
+      logger.info({ user: newUser }, "User registered");
 
       const response: ApiResponse = {
         message: "Usuario registrado exitosamente",
@@ -143,7 +170,7 @@ export const app = new Hono<{
 
       return c.json(response, { status: 201 });
     } catch (error) {
-      console.error("Error creating user:", error);
+      logger.error({ error }, "Error creating user");
       return c.json({ success: false, message: "Error al crear usuario" }, 500);
     }
   })
@@ -216,9 +243,9 @@ export const app = new Hono<{
 
   .get("/api/profile", async (c) => {
     const userId = c.get("userId" as any);
-    const user = await prisma.user.findUnique({ 
-      where: { id: userId }, 
-      select: { id: true, name: true, email: true, phone: true, image: true, role: true } 
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, phone: true, image: true, role: true }
     });
     if (!user) return c.json({ success: false, message: "Usuario no encontrado" }, 404);
 
@@ -243,7 +270,7 @@ export const app = new Hono<{
 
       return c.json({ success: true, user: updatedUser });
     } catch (error) {
-      console.error("Error updating profile:", error);
+      logger.error({ error }, "Error updating profile");
       return c.json({ success: false, message: "Error al actualizar perfil" }, 500);
     }
   })
@@ -384,7 +411,7 @@ export const app = new Hono<{
       });
       return c.json({ success: true, message: "Perfil de onboarding actualizado" });
     } catch (error) {
-      console.error("Onboarding profile error:", error);
+      logger.error({ error }, "Onboarding profile error");
       return c.json({ success: false, message: "Error al actualizar perfil" }, 500);
     }
   })
@@ -404,7 +431,7 @@ export const app = new Hono<{
       });
       return c.json({ success: true, message: "Agenda de onboarding actualizada" });
     } catch (error) {
-      console.error("Onboarding agenda error:", error);
+      logger.error({ error }, "Onboarding agenda error");
       return c.json({ success: false, message: "Error al actualizar agenda" }, 500);
     }
   })
@@ -463,11 +490,11 @@ export const app = new Hono<{
         });
       });
 
-      console.log(`[ONBOARDING] Finalized for user ${userId}. Role set to professional.`);
+      logger.info({ userId }, "Finalized onboarding, role set to professional");
 
       return c.json({ success: true, message: "¡Suscripción activa! Bienvenido a Mindora Pro", user: result });
     } catch (error) {
-      console.error("Onboarding finalize error:", error);
+      logger.error({ error }, "Onboarding finalize error");
       return c.json({ success: false, message: "Error al finalizar onboarding" }, 500);
     }
   })
@@ -525,6 +552,25 @@ export const app = new Hono<{
       return c.json({ success: false, message: "Profesional no encontrado" }, 404);
     }
 
+    // Check session via context (set by middleware)
+    const loggedInUserId = c.get("userId" as any);
+    const isOwner = loggedInUserId === professionalId;
+
+    // Owners can ALWAYS see their own profile, even if it's not fully enabled yet
+    if (isOwner) {
+      const { isProfilePublic, isProfileEnabled, isProfessionalActive, ...publicData } = professional;
+      return c.json({ success: true, professional: publicData, isPublic: professional.isProfilePublic, isOwner: true });
+    }
+
+    if (!loggedInUserId && professional.isProfilePublic) {
+      // Allow limited public view for non-logged in users (though client guard might prevent this)
+      // Actually, user wants session required for all, so 401.
+    }
+
+    if (!loggedInUserId) {
+      return c.json({ success: false, message: "Inicia sesión para ver perfiles" }, 401);
+    }
+
     // Check if profile is enabled (all required fields present)
     const isEnabled = professional.isProfileEnabled &&
       professional.isProfessionalActive &&
@@ -540,25 +586,13 @@ export const app = new Hono<{
     // If profile is public, return it
     if (professional.isProfilePublic) {
       const { isProfilePublic, isProfileEnabled, isProfessionalActive, ...publicData } = professional;
-      return c.json({ success: true, professional: publicData, isPublic: true });
+      return c.json({ success: true, professional: publicData, isPublic: true, isOwner: false });
     }
 
-    // Profile is private — check if requester has an approved relation
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-
-    if (!match) {
-      return c.json({ success: false, message: "Este perfil es privado", isPublic: false }, 403);
-    }
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) {
-      return c.json({ success: false, message: "Este perfil es privado", isPublic: false }, 403);
-    }
+    // Profile is private
 
     // Allow the professional themselves to see their own profile
-    if (token.sub === professionalId) {
+    if (isOwner) {
       const { isProfilePublic, isProfileEnabled, isProfessionalActive, ...publicData } = professional;
       return c.json({ success: true, professional: publicData, isPublic: false, isOwner: true });
     }
@@ -566,7 +600,7 @@ export const app = new Hono<{
     const relation = await prisma.patientProfessionalRelation.findUnique({
       where: {
         patientId_professionalId: {
-          patientId: token.sub,
+          patientId: loggedInUserId,
           professionalId,
         },
       },
@@ -626,7 +660,7 @@ export const app = new Hono<{
 
       return c.json({ success: true, settings: updatedUser });
     } catch (error) {
-      console.error("Error updating profile settings:", error);
+      logger.error({ error }, "Error updating profile settings");
       return c.json({ success: false, message: "Error al actualizar ajustes" }, 500);
     }
   })
@@ -670,6 +704,10 @@ export const app = new Hono<{
       return c.json({ success: false, message: "professionalId y dateTime son requeridos" }, 400);
     }
 
+    if (userId === professionalId) {
+      return c.json({ success: false, message: "No puedes agendar un turno contigo mismo" }, 400);
+    }
+
     // Get professional
     const professional = await prisma.user.findUnique({
       where: { id: professionalId },
@@ -691,7 +729,7 @@ export const app = new Hono<{
     if (isNaN(appointmentDate.getTime())) {
       return c.json({ success: false, message: "Fecha inválida" }, 400);
     }
-    
+
     const now = new Date();
 
     // Check: not in the past
@@ -708,10 +746,10 @@ export const app = new Hono<{
     // Check: slot is within working hours
     const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
     const dayName = dayNames[appointmentDate.getDay()]; // Guaranteed to be string 0-6 if date is valid
-    
+
     // Explicitly cast to unknown then to specific type to avoid Prisma Json type issues
     const wh = professional.workingHours as unknown as Record<string, { start: string; end: string }> | null;
-    
+
     if (!wh || !dayName || !wh[dayName]) {
       return c.json({ success: false, message: "Este profesional no atiende en este día" }, 400);
     }
@@ -719,14 +757,14 @@ export const app = new Hono<{
     const slotHour = appointmentDate.getHours();
     const dayConfig = wh[dayName];
     if (!dayConfig) {
-       return c.json({ success: false, message: "Este profesional no atiende en este día" }, 400);
+      return c.json({ success: false, message: "Este profesional no atiende en este día" }, 400);
     }
-    
+
     const startParts = dayConfig.start.split(":");
     const endParts = dayConfig.end.split(":");
     const startH = Number(startParts[0]);
     const endH = Number(endParts[0]);
-    
+
     if (slotHour < startH || slotHour >= endH) {
       return c.json({ success: false, message: "El horario seleccionado está fuera del rango de atención" }, 400);
     }
@@ -763,7 +801,7 @@ export const app = new Hono<{
 
       return c.json({ success: true, appointment });
     } catch (error) {
-      console.error("Error creating appointment:", error);
+      logger.error({ error }, "Error creating appointment");
       return c.json({ success: false, message: "Error al crear la reserva" }, 500);
     }
   })
@@ -838,6 +876,47 @@ export const app = new Hono<{
       myProfessionals,
       stats,
     });
+  })
+  .get("/api/patient/appointments", async (c) => {
+    const patientId = c.get("userId" as any);
+
+    try {
+      const appointments = await prisma.appointment.findMany({
+        where: { patientId },
+        orderBy: { dateTime: "asc" },
+        include: {
+          professional: {
+            select: { id: true, name: true, image: true, specialty: true, minAnticipationHours: true },
+          },
+        },
+      });
+
+      return c.json({ success: true, appointments });
+    } catch (error) {
+      logger.error({ error }, "Error fetching patient appointments");
+      return c.json({ success: false, message: "Error al obtener las sesiones" }, 500);
+    }
+  })
+
+  .get("/api/professional/appointments", async (c) => {
+    const professionalId = c.get("userId" as any);
+
+    try {
+      const appointments = await prisma.appointment.findMany({
+        where: { professionalId },
+        orderBy: { dateTime: "asc" },
+        include: {
+          patient: {
+            select: { id: true, name: true, image: true, email: true, phone: true },
+          },
+        },
+      });
+
+      return c.json({ success: true, appointments });
+    } catch (error) {
+      logger.error({ error }, "Error fetching professional appointments");
+      return c.json({ success: false, message: "Error al obtener la agenda" }, 500);
+    }
   });
 
 export default app;

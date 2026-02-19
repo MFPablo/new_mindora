@@ -2,6 +2,8 @@ import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -10,7 +12,7 @@ const queryClient = new QueryClient();
 import { routeTree } from "./routeTree.gen";
 
 // Create a new router instance
-const router = createRouter({ 
+const router = createRouter({
 	routeTree,
 	context: {
 		queryClient,
@@ -39,6 +41,7 @@ if (!rootElement.innerHTML) {
 		<StrictMode>
 			<QueryClientProvider client={queryClient}>
 				<RouterProvider router={router} />
+				<ToastContainer position="bottom-right" theme="colored" />
 			</QueryClientProvider>
 		</StrictMode>,
 	);

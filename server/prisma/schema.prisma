@@ -20,6 +20,11 @@ enum PromoKeyType {
   FREE_MONTH
 }
 
+enum AppointmentType {
+  VIRTUAL
+  FACE_TO_FACE
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -74,6 +79,7 @@ model Appointment {
   professionalId   String
   dateTime         DateTime
   status           String   @default("pending") // pending | confirmed | cancelled
+  type             AppointmentType @default(VIRTUAL)
   notes            String?
   patient          User     @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   professional     User     @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)

@@ -1,12 +1,14 @@
-import { createFileRoute, useParams } from "@tanstack/react-router";
+import { createFileRoute, useParams, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, addDays, startOfWeek, isSameDay, isBefore, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { requireAuth } from "@/lib/auth-guard";
 
 export const Route = createFileRoute("/professional/$professionalId")({
+  beforeLoad: ({ context }) => requireAuth({ queryClient: context.queryClient }),
   component: PublicProfessionalProfile,
 });
 
@@ -55,27 +57,6 @@ function generateSlots(start: string, end: string): string[] {
 
 const DAYS_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
-function PrivateProfileScreen({ message }: { message: string }) {
-  return (
-    <div className="bg-slate-50 dark:bg-slate-900 font-display text-slate-800 dark:text-slate-200 min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1 flex items-center justify-center p-8">
-        <div className="max-w-md text-center space-y-6">
-          <div className="w-20 h-20 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400 text-4xl">lock</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Perfil Privado</h1>
-          <p className="text-slate-500 dark:text-slate-400 leading-relaxed">{message}</p>
-          <a href="/" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-lg shadow-blue-500/20">
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-            Volver al inicio
-          </a>
-        </div>
-      </main>
-      <Footer />
-    </div>
-  );
-}
 
 function NotFoundScreen() {
   return (
@@ -182,6 +163,7 @@ function BookingModal({
 function PublicProfessionalProfile() {
   const params = useParams({ from: "/professional/$professionalId" });
   const professionalId = params.professionalId;
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date; time: string } | null>(null);
@@ -196,7 +178,17 @@ function PublicProfessionalProfile() {
       if (!res.ok) throw { status: res.status, ...json };
       return json as { success: boolean; professional: ProfessionalData; isPublic: boolean; isOwner?: boolean };
     },
+    retry: false,
   });
+
+  useEffect(() => {
+    if (error) {
+      const err = error as { status?: number; message?: string };
+      if (err.status === 403) {
+        navigate({ to: "/dashboard/patient" });
+      }
+    }
+  }, [error, navigate]);
 
   // Calculate Week Dates
   const weekStart = useMemo(() => {
@@ -224,6 +216,9 @@ function PublicProfessionalProfile() {
 
   const createAppointment = useMutation({
     mutationFn: async (slot: { date: Date; time: string }) => {
+      if (data?.isOwner) {
+        throw new Error("No puedes agendar un turno contigo mismo");
+      }
       // Construct ISO datetime string from date + time
       const [h, m] = slot.time.split(":").map(Number);
       const dt = new Date(slot.date);
@@ -256,7 +251,9 @@ function PublicProfessionalProfile() {
   if (isLoading) return <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center"><div className="animate-spin text-blue-600 text-4xl material-symbols-outlined">progress_activity</div></div>;
   if (error) {
     const err = error as { status?: number; message?: string };
-    return err.status === 403 ? <PrivateProfileScreen message={err.message || ""} /> : <NotFoundScreen />;
+    // 403 is handled by useEffect redirect
+    if (err.status === 403) return null;
+    return <NotFoundScreen />;
   }
   if (!data?.professional) return <NotFoundScreen />;
 
@@ -283,7 +280,7 @@ function PublicProfessionalProfile() {
             {/* Left Column: Profile Card */}
             <div className="lg:col-span-5 space-y-6">
               <div className="bg-white dark:bg-[#1a2233] rounded-2xl p-8 border border-[#e7ebf3] dark:border-gray-800 shadow-sm text-center lg:text-left sticky top-6">
-                 <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 mb-6">
+                <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 mb-6">
                   <div
                     className="w-32 h-32 rounded-2xl bg-cover bg-center shadow-lg shrink-0 bg-slate-200 dark:bg-slate-700"
                     style={{
@@ -343,7 +340,7 @@ function PublicProfessionalProfile() {
             {/* Right Column: Interactive Calendar */}
             <div className="lg:col-span-7">
               <div className="bg-white dark:bg-[#1a2233] rounded-2xl border border-[#e7ebf3] dark:border-gray-800 shadow-lg overflow-hidden sticky top-6">
-                
+
                 {/* Calendar Header with Navigation */}
                 <div className="p-6 border-b border-[#e7ebf3] dark:border-gray-800 flex items-center justify-between">
                   <div>
@@ -382,7 +379,7 @@ function PublicProfessionalProfile() {
                         const dayName = format(date, "EEE", { locale: es });
                         const dayNum = format(date, "d");
                         const isCurrentDay = isSameDay(date, today);
-                        
+
                         return (
                           <div key={i} className={`flex flex-col items-center p-2 rounded-xl border ${isCurrentDay ? "bg-blue-600 border-blue-600 text-white shadow-md transform scale-105" : "border-transparent text-slate-500"}`}>
                             <span className={`text-xs uppercase font-bold ${isCurrentDay ? "text-blue-100" : ""}`}>{dayName}</span>
@@ -403,13 +400,13 @@ function PublicProfessionalProfile() {
                           const dayKey = DAYS_ORDER[i];
                           const dayConfig = workingHours[dayKey];
                           const slots = dayConfig ? generateSlots(dayConfig.start, dayConfig.end) : [];
-                          
+
                           // Correctly calculate start of day for comparison
                           const startOfDayToday = new Date(today);
                           startOfDayToday.setHours(0, 0, 0, 0);
                           const startOfThisDate = new Date(date);
                           startOfThisDate.setHours(0, 0, 0, 0);
-                          
+
                           const isPastDay = isBefore(startOfThisDate, startOfDayToday);
 
                           const bookedSlots = new Set(
@@ -422,7 +419,7 @@ function PublicProfessionalProfile() {
                             <div key={i} className="flex flex-col gap-2 relative">
                               {/* Vertical Divider */}
                               {i > 0 && <div className="absolute -left-1 top-0 bottom-0 w-px bg-slate-100 dark:bg-slate-800" />}
-                              
+
                               {slots.length === 0 || isPastDay ? (
                                 <div className="h-full flex items-center justify-center py-8">
                                   <span className="text-xl text-slate-200 dark:text-slate-700 select-none">•</span>
@@ -437,14 +434,14 @@ function PublicProfessionalProfile() {
                                   const slotDate = new Date(date);
                                   slotDate.setHours(h, m, 0, 0);
                                   const now = new Date();
-                                  
+
                                   const isBooked = bookedSlots.has(time);
                                   const isPastTime = isBefore(slotDate, now);
                                   const minAnticipationMs = prof.minAnticipationHours * 60 * 60 * 1000;
                                   const isTooSoon = slotDate.getTime() - now.getTime() < minAnticipationMs;
 
-                                  const isDisabled = isBooked || isPastTime || isTooSoon;
-                                  
+                                  const isDisabled = isBooked || isPastTime || isTooSoon || data?.isOwner;
+
                                   const isSelected = selectedSlot?.time === time && isSameDay(selectedSlot.date, date);
 
                                   let buttonClass = "w-full py-2 text-sm font-medium rounded-lg transition-all border ";
@@ -468,9 +465,10 @@ function PublicProfessionalProfile() {
                                       className={buttonClass}
                                       title={
                                         isBooked ? "Ocupado" :
-                                        isPastTime ? "Horario pasado" :
-                                        isTooSoon ? `Requiere ${prof.minAnticipationHours}h de anticipación` :
-                                        "Disponible"
+                                          isPastTime ? "Horario pasado" :
+                                            isTooSoon ? `Requiere ${prof.minAnticipationHours}h de anticipación` :
+                                              data?.isOwner ? "Vista previa (Desactivado)" :
+                                                "Disponible"
                                       }
                                     >
                                       {isBooked ? "Ocupado" : time}
@@ -500,13 +498,20 @@ function PublicProfessionalProfile() {
                       <div className="text-sm text-slate-400">Selecciona un horario para continuar</div>
                     )}
                   </div>
-                  <button
-                    disabled={!selectedSlot}
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all"
-                  >
-                    Agendar
-                  </button>
+                  {data?.isOwner ? (
+                    <div className="px-6 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold border border-slate-200 dark:border-slate-700 flex items-center gap-2 cursor-default">
+                      <span className="material-symbols-outlined text-[20px]">visibility</span>
+                      Vista previa del perfil
+                    </div>
+                  ) : (
+                    <button
+                      disabled={!selectedSlot}
+                      onClick={() => setIsModalOpen(true)}
+                      className="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all"
+                    >
+                      Agendar
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -517,12 +522,15 @@ function PublicProfessionalProfile() {
       <BookingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onConfirm={() => selectedSlot && createAppointment.mutate(selectedSlot)}
+        onConfirm={() => {
+          if (data?.isOwner) return;
+          selectedSlot && createAppointment.mutate(selectedSlot);
+        }}
         slot={selectedSlot}
         professional={prof}
         isPending={createAppointment.isPending}
       />
-      
+
       <Footer />
     </div>
   );

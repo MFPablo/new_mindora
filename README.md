@@ -9,7 +9,10 @@ Mindora es una plataforma integral para la gestión de clínicas de salud y psic
 - **Frontend (React + Vite)**: Interfaz moderna y responsiva construida con Tailwind CSS v4 y TanStack Router.
 - **Autenticación**: Flujo de autenticación completo (Signup/Login) con soporte para Credenciales y Google OAuth.
 - **Gestión de Perfil**: Perfil de paciente completo con subida de fotos a Cloudinary y gestión de seguridad.
-- **Testing E2E**: Suite de pruebas automatizadas con Playwright.
+- **Gestión de Agenda y Reservas**: Calendario interactivo para profesionales con gestión de disponibilidad y sistema de reservas para pacientes.
+- **Seguridad y Control de Acceso**: Prevención de auto-reservas, protección de rutas por rol y redirección inteligente basada en el perfil del usuario.
+- **Dashboards Personalizados**: Vistas específicas para pacientes y profesionales con métricas, próximas sesiones y tarjetas de emergencia (SOS).
+- **Testing E2E**: Suite de pruebas automatizadas con Playwright que cubren flujos críticos como registro, login y gestión de perfil.
 
 ## Estructura del Proyecto
 

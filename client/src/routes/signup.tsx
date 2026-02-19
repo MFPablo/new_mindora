@@ -6,7 +6,10 @@ import { Footer } from "@/components/Footer";
 
 import { z } from "zod";
 
+import { redirectIfAuth } from "@/lib/auth-guard";
+
 export const Route = createFileRoute("/signup")({
+  beforeLoad: ({ context }) => redirectIfAuth({ queryClient: context.queryClient }),
   validateSearch: (search: Record<string, unknown>) => {
     return z.object({
       plan: z.string().optional(),

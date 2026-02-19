@@ -3,6 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { toast } from "react-toastify";
+import { EmergencyCard } from "@/components/EmergencyCard";
+import { CrisisModal } from "@/components/CrisisModal";
 
 import { z } from "zod";
 
@@ -26,6 +29,7 @@ function ProfilePage() {
   const { section } = routeApi.useSearch();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = useState(section || "personal");
+  const [isCrisisModalOpen, setIsCrisisModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch profile data
@@ -59,36 +63,34 @@ function ProfilePage() {
     <div className="min-h-screen bg-background-light font-display flex flex-col">
       <Navbar />
       <main className="flex-grow w-full max-w-[1440px] mx-auto px-6 py-8 md:px-10 md:py-10">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-text-main text-3xl font-black tracking-tight">Mi Perfil</h1>
-          <p className="text-text-secondary text-base mt-2">
-            Gestiona tu información personal y la seguridad de tu cuenta.
-          </p>
-        </div>
+        {/* Layout Grid */}
+        <div className="flex flex-col lg:flex-row gap-10 items-start">
+          {/* Sticky Left Column (Header + Sidebar) */}
+          <aside className="hidden lg:flex lg:w-[320px] lg:sticky lg:top-28 flex-col gap-8">
+            <div>
+              <h1 className="text-text-main text-3xl font-black tracking-tight">Mi Perfil</h1>
+              <p className="text-text-secondary text-sm mt-2">
+                Gestiona tu información personal y la seguridad de tu cuenta.
+              </p>
+            </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Sidebar */}
-          <aside className="lg:col-span-3">
-            <nav className="flex flex-col gap-1 sticky top-28">
+            <nav className="flex flex-col gap-1">
               {[
                 { id: "personal", icon: "badge", label: "Información Personal" },
+                ...(data.user.role !== "professional" ? [{ id: "upgrade", icon: "workspace_premium", label: "Mindora Pro" }] : []),
                 { id: "security", icon: "lock", label: "Seguridad" },
-                { id: "notifications", icon: "notifications", label: "Notificaciones" },
                 { id: "billing", icon: "credit_card", label: "Pagos y Facturación" },
                 { id: "promo", icon: "redeem", label: "Códigos Promocionales" },
-                ...(data.user.role !== "professional" ? [{ id: "upgrade", icon: "workspace_premium", label: "Mindora Pro" }] : []),
               ].map((item) => (
                 <button
                   key={item.id}
                   onClick={() => {
                     setActiveSection(item.id);
-                    document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth" });
+                    document.getElementById(item.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${activeSection === item.id
-                    ? "bg-blue-600/10 text-blue-600 font-bold"
-                    : "text-text-secondary font-medium hover:bg-white hover:text-text-main"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors cursor-pointer ${activeSection === item.id
+                    ? "bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20"
+                    : "text-text-secondary font-medium hover:bg-white hover:text-text-main shadow-sm border border-transparent hover:border-border-color"
                     }`}
                 >
                   <span className="material-symbols-outlined">{item.icon}</span>
@@ -96,10 +98,14 @@ function ProfilePage() {
                 </button>
               ))}
             </nav>
+
+            <div className="mt-4">
+              <EmergencyCard onOpenModal={() => setIsCrisisModalOpen(true)} />
+            </div>
           </aside>
 
-          {/* Content */}
-          <div className="lg:col-span-9 flex flex-col gap-8">
+          {/* Scrollable Content */}
+          <div className="flex-1 flex flex-col gap-8 min-w-0">
             <div id="personal">
               <PersonalInfoSection user={data.user} fileInputRef={fileInputRef} queryClient={queryClient} />
             </div>
@@ -121,6 +127,7 @@ function ProfilePage() {
         </div>
       </main>
       <Footer />
+      <CrisisModal isOpen={isCrisisModalOpen} onClose={() => setIsCrisisModalOpen(false)} />
     </div>
   );
 }
@@ -141,7 +148,6 @@ function PersonalInfoSection({
   const [email, setEmail] = useState(user.email || "");
   const [phone, setPhone] = useState(user.phone || "");
   const [avatarUrl, setAvatarUrl] = useState(user.image || "");
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -159,12 +165,13 @@ function PersonalInfoSection({
       return res.json();
     },
     onSuccess: () => {
-      setSaveStatus("saved");
+      toast.success("Información personal actualizada");
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["session"] });
-      setTimeout(() => setSaveStatus("idle"), 2000);
     },
-    onError: () => setSaveStatus("error"),
+    onError: () => {
+      toast.error("Error al guardar la información");
+    },
   });
 
   const uploadMutation = useMutation({
@@ -192,6 +199,7 @@ function PersonalInfoSection({
     },
     onError: (err: any) => {
       console.error("Mutation error observer:", err.message);
+      toast.error(err.message || "Error al subir la imagen");
     },
   });
 
@@ -213,8 +221,10 @@ function PersonalInfoSection({
       });
       setAvatarUrl("");
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.info("Foto de perfil eliminada");
     } catch (error) {
       console.error("Delete avatar error:", error);
+      toast.error("Error al eliminar la foto");
     }
   };
 
@@ -346,19 +356,12 @@ function PersonalInfoSection({
 
         {/* Save */}
         <div className="mt-8 flex justify-end pt-6 border-t border-border-color">
-          {saveStatus === "saved" && (
-            <span className="text-green-600 text-sm font-medium mr-4 self-center anim-fade-in">✓ Cambios guardados</span>
-          )}
-          {saveStatus === "error" && (
-            <span className="text-red-600 text-sm font-medium mr-4 self-center anim-fade-in">Error al guardar</span>
-          )}
           <button
             onClick={() => {
-              setSaveStatus("saving");
               saveMutation.mutate();
             }}
             disabled={saveMutation.isPending}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 cursor-pointer"
           >
             {saveMutation.isPending ? "Guardando..." : "Guardar Cambios"}
           </button>
@@ -373,7 +376,6 @@ function SecuritySection() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -391,14 +393,13 @@ function SecuritySection() {
       return data;
     },
     onSuccess: () => {
-      setStatus({ type: "success", message: "Contraseña actualizada exitosamente" });
+      toast.success("Contraseña actualizada exitosamente");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setTimeout(() => setStatus(null), 3000);
     },
     onError: (err: Error) => {
-      setStatus({ type: "error", message: err.message });
+      toast.error(err.message);
     },
   });
 
@@ -410,19 +411,6 @@ function SecuritySection() {
       <div className="p-6 md:p-8">
         <h3 className="text-base font-bold text-text-main mb-4">Cambiar Contraseña</h3>
 
-        {status && (
-          <div
-            className={`mb-4 p-4 rounded-lg text-sm font-medium flex items-center gap-2 ${status.type === "success"
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {status.type === "success" ? "check_circle" : "error"}
-            </span>
-            {status.message}
-          </div>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
           <div className="md:col-span-2">
@@ -472,16 +460,15 @@ function SecuritySection() {
               setCurrentPassword("");
               setNewPassword("");
               setConfirmPassword("");
-              setStatus(null);
             }}
-            className="bg-white border border-border-color text-text-main font-medium py-2.5 px-6 rounded-lg hover:bg-gray-50 transition-colors mr-3"
+            className="bg-white border border-border-color text-text-main font-medium py-2.5 px-6 rounded-lg hover:bg-gray-50 transition-colors mr-3 cursor-pointer"
           >
             Cancelar
           </button>
           <button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !currentPassword || !newPassword || !confirmPassword}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 cursor-pointer"
           >
             {mutation.isPending ? "Actualizando..." : "Actualizar Contraseña"}
           </button>
@@ -495,7 +482,6 @@ function SecuritySection() {
 function PromoCodeSection() {
   const queryClient = useQueryClient();
   const [promoCode, setPromoCode] = useState("");
-  const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (key: string) => {
@@ -510,15 +496,14 @@ function PromoCodeSection() {
       return data;
     },
     onSuccess: (data) => {
-      setStatus({ type: "success", message: data.message });
+      toast.success(data.message);
       setPromoCode("");
       // Invalidate both session (for potentially new features) and billing history
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["billing"] });
-      setTimeout(() => setStatus(null), 5000);
     },
     onError: (err: Error) => {
-      setStatus({ type: "error", message: err.message });
+      toast.error(err.message);
     },
   });
 
@@ -532,19 +517,6 @@ function PromoCodeSection() {
           Si tienes un código de descuento o una promoción, ingrésalo aquí para aplicarlo a tu cuenta.
         </p>
 
-        {status && (
-          <div
-            className={`mb-6 p-4 rounded-lg text-sm font-medium flex items-center gap-3 ${status.type === "success"
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-              }`}
-          >
-            <span className="material-symbols-outlined shrink-0 text-[18px]">
-              {status.type === "success" ? "check_circle" : "error"}
-            </span>
-            {status.message}
-          </div>
-        )}
 
         <div className="flex flex-col sm:flex-row gap-4 max-w-xl">
           <div className="flex-1">
@@ -559,7 +531,7 @@ function PromoCodeSection() {
           <button
             onClick={() => mutation.mutate(promoCode)}
             disabled={mutation.isPending || !promoCode.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 whitespace-nowrap"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 disabled:opacity-50 whitespace-nowrap cursor-pointer"
           >
             {mutation.isPending ? "Validando..." : "Canjear Código"}
           </button>

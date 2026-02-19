@@ -5,11 +5,15 @@ import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
+import { redirectIfAuth, getHomeDashboard } from "@/lib/auth-guard";
+
 export const Route = createFileRoute("/login")({
+  beforeLoad: ({ context }) => redirectIfAuth({ queryClient: context.queryClient }),
   component: LoginPage,
 });
 
 function LoginPage() {
+  const { redirect } = Route.useSearch() as { redirect?: string };
   const [showPassword, setShowPassword] = useState(false);
   const {
     register,
@@ -51,8 +55,10 @@ function LoginPage() {
       const { user } = data;
       if (user.role === "professional" && user.onboardingStep < 3) {
         window.location.href = "/onboarding/step-1";
+      } else if (redirect) {
+        window.location.href = redirect;
       } else {
-        window.location.href = "/profile";
+        window.location.href = getHomeDashboard(user);
       }
     },
     onError: (error: any) => {

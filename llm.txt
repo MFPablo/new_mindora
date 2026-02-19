@@ -24,10 +24,12 @@ A modern mental health platform monorepo built with Bun, Hono, Vite, and React.
 ## Key Architectural Patterns
 - **Authentication Middleware**: Centralized JWT decoding and session extraction in `server/src/index.ts` middleware.
 - **Role-Based Access Control**:
-    - Backend: `roleGuard` middleware to restrict `/api/patient/*` and `/api/professional/*` endpoints.
-    - Frontend: `requireAuth` utility in `client/src/lib/auth-guard.ts` for route protection in TanStack Router's `beforeLoad`.
-- **Booking System**: Interactive calendar with anticipation logic (blocks slots within X hours of current time) and dynamic availability fetching.
-- **Crisis Support**: Global "SOS" floating button in the patient dashboard for immediate emergency contacts.
+    - Backend: `roleGuard` middleware and custom role checks for `/api/professional/*`.
+    - Frontend: `requireAuth` for protection and `redirectIfAuth` to prevent logged-in users from accessing login/signup.
+    - Global Redirection: Centralized `getHomeDashboard` logic (Patient Dashboard as default, Professional Dashboard for active professionals).
+- **Professional Booking System**: Interactive calendar with anticipation logic, dynamic availability, and security blocks for self-booking.
+- **Profile Visibility**: Smart visibility logic allowing owners to bypass "active profile" and "private profile" checks on the server.
+- **Crisis Support**: Integrated "SOS" emergency cards in both patient and professional dashboards.
 
 ## Commands
 - `bun run dev`: Start both client and server in development mode.

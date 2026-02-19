@@ -51,10 +51,11 @@ Comprehensive technical documentation for the New Mindora platform, designed for
 - `POST /api/onboarding/finalize`: Step 3 - Plan selection and role activation.
 
 ### Professional & Booking
-- `GET /api/professional/:id/public`: Public profile view with access control logic.
+- `GET /api/professional/:id/public`: Public profile view. Includes `isOwner` detection and bypasses visibility/private checks for profile owners.
 - `PUT /api/professional/profile-settings`: Update bio, price, visibility.
 - `GET /api/professional/:id/appointments?weekStart=...`: Get booked slots for a week.
-- `POST /api/appointments`: Create a booking with validation (anticipation, availability).
+- `POST /api/appointments`: Create a booking with validation (prevent self-booking, check anticipation, availability).
+- `GET /api/professional/appointments`: Professional-specific agenda view.
 
 ### Patient Features
 - `GET /api/patient/dashboard`: Stats, next session, upcoming sessions, and professional list.
@@ -79,10 +80,10 @@ Located in `client/src/routes/`:
 ## 5. Security Architecture
 - **JWT Authentication**: Managed via `@auth/core` and decoded in backend middleware.
 - **Role Guards**: 
-  - Backend: `.use("/api/patient/*", roleGuard("patient"))`
-  - Frontend: `beforeLoad: () => requireAuth({ role: 'patient' })`
-- **Anticipation Logic**: Backend validates that bookings are made at least `minAnticipationHours` in advance.
-- **Slot Isolation**: Calendar logic ensures no overlapping appointments for professionals.
+  - Backend: `.use("/api/patient/*", roleGuard("patient"))` and methodological filters for professional endpoints.
+  - Frontend: `requireAuth` for authorized routes and `redirectIfAuth` for guest-only pages (Login/Signup).
+- **Redirection Logic**: Centralized `getHomeDashboard` helper ensures users land on the correct role-specific dashboard after auth actions.
+- **Anticipation & Self-Interaction**: Backend prevents professionals from booking appointments with themselves and enforces `minAnticipationHours`.
 
 ---
 

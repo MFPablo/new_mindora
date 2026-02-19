@@ -152,11 +152,64 @@ async function main() {
     }
   }
 
+  // Create Appointments
+  console.log('Seeding appointments...');
+  const appointments = [
+    {
+      patientId: patient.id,
+      professionalId: professional.id,
+      dateTime: new Date(new Date().getFullYear(), new Date().getMonth(), 24, 14, 0), // Today (or 24th) at 14:00
+      status: 'confirmed',
+      type: 'VIRTUAL',
+      notes: 'Sesión de seguimiento mensual',
+    },
+    {
+      patientId: patient.id,
+      professionalId: professional.id,
+      dateTime: new Date(new Date().getFullYear(), new Date().getMonth(), 25, 10, 0), // Tomorrow at 10:00
+      status: 'confirmed',
+      type: 'FACE_TO_FACE',
+      notes: 'Control general',
+    },
+    {
+      patientId: patient.id,
+      professionalId: professional.id,
+      dateTime: new Date(new Date().getFullYear(), new Date().getMonth(), 26, 16, 30), // Day after tomorrow at 16:30
+      status: 'confirmed',
+      type: 'VIRTUAL',
+      notes: 'Terapia cognitivo-conductual',
+    },
+    {
+      patientId: patient.id,
+      professionalId: professional.id,
+      dateTime: new Date(new Date().getFullYear(), new Date().getMonth(), 3, 14, 0), // 3rd at 14:00
+      status: 'confirmed',
+      type: 'VIRTUAL',
+      notes: 'Sesión inicial',
+    }
+  ];
+
+  for (const a of appointments) {
+    await prisma.appointment.upsert({
+      where: {
+        professionalId_dateTime: {
+          professionalId: a.professionalId,
+          dateTime: a.dateTime,
+        }
+      },
+      update: {
+        type: a.type as any,
+      },
+      create: a as any,
+    });
+  }
+
   console.log({
     admin: { ...admin, password: '[PROTECTED]' },
     patient: { ...patient, password: '[PROTECTED]' },
     professional: { ...professional, password: '[PROTECTED]' },
-    promoKeys: keys.map(k => k.key)
+    promoKeys: keys.map(k => k.key),
+    appointmentsCount: appointments.length
   });
   console.log('Seeding finished.');
 }

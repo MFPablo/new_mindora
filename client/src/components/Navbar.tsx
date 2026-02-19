@@ -113,7 +113,7 @@ function LoggedInSection({ session }: { session: any }) {
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
-          className="flex items-center gap-3 pl-4 border-l border-border-color outline-none group"
+          className="flex items-center gap-3 pl-4 border-l border-border-color outline-none group cursor-pointer"
         >
           <div className="text-right hidden sm:block">
             <p className="text-sm font-bold text-text-main group-hover:text-blue-600 transition-colors">{displayName}</p>
@@ -136,34 +136,36 @@ function LoggedInSection({ session }: { session: any }) {
 
         {/* Dropdown menu */}
         {dropdownOpen && (
-          <div className="absolute right-0 top-full mt-2 w-48 bg-surface-light rounded-lg shadow-lg border border-border-color py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden">
+          <div className="absolute right-0 top-full mt-2 w-60 bg-surface-light rounded-lg shadow-lg border border-border-color py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150 overflow-hidden">
             <Link
               to="/profile"
               onClick={() => setDropdownOpen(false)}
-              activeProps={{ className: "text-blue-600 font-bold bg-blue-50/50" }}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              activeProps={{ className: "!bg-blue-600 !text-white !font-bold hover:!bg-blue-600 hover:!text-white" }}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors mx-1 rounded-md"
             >
               <span className="material-symbols-outlined text-lg">person</span>
               Mi Perfil
+            </Link>
+            <Link
+              to="/dashboard/patient"
+              onClick={() => setDropdownOpen(false)}
+              activeProps={{ className: "!bg-blue-600 !text-white !font-bold hover:!bg-blue-600 hover:!text-white" }}
+              className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors mx-1 rounded-md"
+            >
+              <span className="material-symbols-outlined text-lg">dashboard</span>
+              Mi Panel (Paciente)
             </Link>
             {user?.role === "professional" && (
               <Link
                 to="/dashboard/professional"
                 onClick={() => setDropdownOpen(false)}
-                activeProps={{ className: "text-blue-600 font-bold bg-blue-50/50" }}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                activeProps={{ className: "!bg-blue-600 !text-white !font-bold hover:!bg-blue-600 hover:!text-white" }}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors mx-1 rounded-md"
               >
                 <span className="material-symbols-outlined text-lg">dashboard</span>
                 Panel Profesional
               </Link>
             )}
-            <a
-              href="#"
-              className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-main hover:bg-blue-50 hover:text-blue-600 transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">calendar_month</span>
-              Mis Sesiones
-            </a>
             <div className="border-t border-border-color my-1" />
             <button
               onClick={handleLogout}

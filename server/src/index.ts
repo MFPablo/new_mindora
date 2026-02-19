@@ -4,6 +4,7 @@ import { zValidator } from "@hono/zod-validator";
 import { signupSchema, type ApiResponse, type SignupInput } from "shared";
 import { authHandler, initAuthConfig, verifyAuth } from "@hono/auth-js";
 import { authConfig, prisma } from "./auth";
+import { Prisma } from "@prisma/client";
 import { logger } from "./logger";
 import { pinoLogger } from "hono-pino";
 import bcryptjs from "bcryptjs";
@@ -374,7 +375,7 @@ export const app = new Hono<{
 
       if (existingRedemption) return c.json({ success: false, message: "Ya canjeado" }, 400);
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.promoKeyRedemption.create({ data: { userId, promoKeyId: promoKey.id } });
         await tx.promoKey.update({ where: { id: promoKey.id }, data: { used: { increment: 1 } } });
 
@@ -445,7 +446,7 @@ export const app = new Hono<{
     const { promoKey, plan } = await c.req.json();
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         if (promoKey) {
           const pk = await tx.promoKey.findUnique({ where: { key: promoKey.toUpperCase() } });
           if (pk && pk.used < pk.uses) {
@@ -858,7 +859,7 @@ export const app = new Hono<{
       distinct: ["professionalId"],
     });
 
-    const professionalIds = appointmentsWithPros.map(a => a.professionalId);
+    const professionalIds = appointmentsWithPros.map((a: { professionalId: string }) => a.professionalId);
 
     const myProfessionals = await prisma.user.findMany({
       where: {

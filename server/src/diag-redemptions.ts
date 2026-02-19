@@ -22,7 +22,7 @@ async function main() {
 
     const keys = await prisma.promoKey.findMany();
     console.log("--- Current Promo Keys ---");
-    console.log(JSON.stringify(keys.map(k => ({ key: k.key, used: k.used, uses: k.uses })), null, 2));
+    console.log(JSON.stringify(keys.map((k: any) => ({ key: k.key, used: k.used, uses: k.uses })), null, 2));
 
   } catch (error) {
     console.error("Error diagnostic:", error);

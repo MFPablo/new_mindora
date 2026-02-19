@@ -6,6 +6,7 @@ import { authHandler, initAuthConfig, verifyAuth } from "@hono/auth-js";
 import { authConfig, prisma } from "./auth";
 import { logger } from "./logger";
 import { pinoLogger } from "hono-pino";
+import bcryptjs from "bcryptjs";
 
 export const app = new Hono<{
   Variables: {
@@ -14,7 +15,10 @@ export const app = new Hono<{
 }>()
 
   .use(cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
+    origin: (origin) => {
+      const allowed = ["http://localhost:5173", "http://localhost:3000", process.env.VITE_CLIENT_URL];
+      return allowed.includes(origin) ? origin : allowed[0];
+    },
     credentials: true,
   }))
   // @ts-ignore
@@ -148,7 +152,7 @@ export const app = new Hono<{
       return c.json({ success: false, message: "El usuario ya existe" }, 400);
     }
 
-    const hashedPassword = await Bun.password.hash(data.password);
+    const hashedPassword = await bcryptjs.hash(data.password, 10);
 
     try {
       const newUser = await prisma.user.create({
@@ -200,7 +204,7 @@ export const app = new Hono<{
       return c.json({ success: false, message: "Credenciales inválidas" }, 401);
     }
 
-    const isValid = await Bun.password.verify(password, user.password);
+    const isValid = await bcryptjs.compare(password, user.password);
     if (!isValid) {
       return c.json({ success: false, message: "Credenciales inválidas" }, 401);
     }
@@ -335,10 +339,10 @@ export const app = new Hono<{
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.password) return c.json({ success: false, message: "Usuario no encontrado" }, 404);
 
-    const isValid = await Bun.password.verify(currentPassword, user.password);
+    const isValid = await bcryptjs.compare(currentPassword, user.password);
     if (!isValid) return c.json({ success: false, message: "Contraseña actual incorrecta" }, 401);
 
-    const hashedPassword = await Bun.password.hash(newPassword);
+    const hashedPassword = await bcryptjs.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
@@ -524,6 +528,9 @@ export const app = new Hono<{
   // PUBLIC PROFESSIONAL PROFILE
   .get("/api/professional/:id/public", async (c) => {
     const professionalId = c.req.param("id");
+    const loggedInUserId = c.get("userId" as any);
+
+    logger.info({ professionalId, loggedInUserId }, "Accessing public profile");
 
     const professional = await prisma.user.findUnique({
       where: { id: professionalId },
@@ -548,23 +555,27 @@ export const app = new Hono<{
       },
     });
 
-    if (!professional || professional.role !== "professional") {
+    const isOwner = loggedInUserId === professionalId;
+
+    if (!professional) {
+      logger.warn({ professionalId, loggedInUserId, isOwner }, "Professional not found in DB");
       return c.json({ success: false, message: "Profesional no encontrado" }, 404);
     }
 
-    // Check session via context (set by middleware)
-    const loggedInUserId = c.get("userId" as any);
-    const isOwner = loggedInUserId === professionalId;
-
-    // Owners can ALWAYS see their own profile, even if it's not fully enabled yet
+    // Owners can ALWAYS see their own profile, even if it's not fully enabled yet or role is still being set
     if (isOwner) {
       const { isProfilePublic, isProfileEnabled, isProfessionalActive, ...publicData } = professional;
       return c.json({ success: true, professional: publicData, isPublic: professional.isProfilePublic, isOwner: true });
     }
 
+    // For non-owners, check if it's actually a professional and if the profile is enabled
+    if (professional.role !== "professional") {
+      logger.warn({ professionalId, role: professional.role }, "Access denied: User is not a professional");
+      return c.json({ success: false, message: "Profesional no encontrado" }, 404);
+    }
+
     if (!loggedInUserId && professional.isProfilePublic) {
-      // Allow limited public view for non-logged in users (though client guard might prevent this)
-      // Actually, user wants session required for all, so 401.
+      // Allow limited public view? No, per requirements session is needed.
     }
 
     if (!loggedInUserId) {

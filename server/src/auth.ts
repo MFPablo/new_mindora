@@ -3,6 +3,7 @@ import Credentials from "@auth/core/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { PrismaClient } from "@prisma/client";
 import type { AuthConfig } from "@hono/auth-js";
+import bcryptjs from "bcryptjs";
 
 export const prisma = new PrismaClient();
 
@@ -27,7 +28,7 @@ export const authConfig: AuthConfig = {
 
         if (!user || !user.password) return null;
 
-        const isValid = await Bun.password.verify(credentials.password as string, user.password);
+        const isValid = await bcryptjs.compare(credentials.password as string, user.password);
 
         if (!isValid) return null;
 

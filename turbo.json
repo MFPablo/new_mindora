@@ -23,7 +23,8 @@
       "outputs": [
         "dist/**",
         "build/**",
-        ".turbo/**"
+        ".turbo/**",
+        ".next/**"
       ],
       "env": [
         "NODE_ENV",

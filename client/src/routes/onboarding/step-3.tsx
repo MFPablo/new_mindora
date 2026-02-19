@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { SERVER_URL } from "@/lib/api";
 import { z } from "zod";
 
 import { requireAuth } from "@/lib/auth-guard";
@@ -21,7 +22,6 @@ const routeApi = getRouteApi("/onboarding/step-3");
 
 function OnboardingStep3() {
   const { plan } = routeApi.useSearch();
-  const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
 
   const {
     register,

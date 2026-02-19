@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { SERVER_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/forgot-password")({
   component: ForgotPasswordPage,
@@ -18,7 +19,7 @@ function ForgotPasswordPage() {
 
   const mutation = useMutation({
     mutationFn: async (data: { email: string }) => {
-      const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+      const serverUrl = SERVER_URL;
       const res = await fetch(`${serverUrl}/api/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

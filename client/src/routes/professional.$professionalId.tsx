@@ -12,7 +12,7 @@ export const Route = createFileRoute("/professional/$professionalId")({
   component: PublicProfessionalProfile,
 });
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+import { SERVER_URL } from "@/lib/api";
 
 interface ProfessionalData {
   id: string;

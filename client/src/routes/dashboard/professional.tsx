@@ -14,7 +14,7 @@ export const Route = createFileRoute("/dashboard/professional")({
   component: ProfessionalDashboard,
 });
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+import { SERVER_URL } from "@/lib/api";
 
 function ProfessionalDashboard() {
   const queryClient = useQueryClient();

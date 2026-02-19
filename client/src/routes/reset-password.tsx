@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-r
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { SERVER_URL } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
@@ -33,7 +34,7 @@ function ResetPasswordPage() {
 
   const mutation = useMutation({
     mutationFn: async (data: any) => {
-      const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+      const serverUrl = SERVER_URL;
       const res = await fetch(`${serverUrl}/api/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

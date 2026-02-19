@@ -2,8 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useRef, useEffect } from "react";
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+import { useQueryClient } from "@tanstack/react-query";
+import { SERVER_URL } from "@/lib/api";
 
 export function Navbar() {
   const { data: session } = useQuery({
@@ -72,6 +72,7 @@ export function Navbar() {
 }
 
 function LoggedInSection({ session }: { session: any }) {
+  const queryClient = useQueryClient();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -98,8 +99,15 @@ function LoggedInSection({ session }: { session: any }) {
       : "Paciente";
 
   const handleLogout = async () => {
-    await fetch(`${SERVER_URL}/api/logout`, { method: "POST", credentials: "include" });
-    window.location.href = "/";
+    try {
+      await fetch(`${SERVER_URL}/api/logout`, { method: "POST", credentials: "include" });
+      queryClient.setQueryData(["session"], null);
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+      window.location.href = "/";
+    }
   };
 
   return (

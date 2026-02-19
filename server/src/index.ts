@@ -24,6 +24,13 @@ export const app = new Hono<{
   }))
   // @ts-ignore
   .use("*", initAuthConfig((c) => authConfig))
+  // Prevent caching of the session endpoint
+  .use("/auth/session", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    c.header("Pragma", "no-cache");
+    c.header("Expires", "0");
+  })
   // @ts-ignore
   .use("/auth/*", authHandler())
   .use("*", pinoLogger({
@@ -48,8 +55,8 @@ export const app = new Hono<{
 
   // Middleware to verify authentication and extract user info
   .use("/api/*", async (c, next) => {
-    // Signup and login are always public and don't need user context
-    if (c.req.path === "/api/signup" || c.req.path === "/api/login") {
+    // Signup, login and logout are always public and don't need user context
+    if (c.req.path === "/api/signup" || c.req.path === "/api/login" || c.req.path === "/api/logout") {
       return await next();
     }
 
@@ -242,7 +249,11 @@ export const app = new Hono<{
   })
 
   .post("/api/logout", (c) => {
-    c.header("Set-Cookie", "authjs.session-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+    // Clear all variations of Auth.js session cookies
+    c.header("Set-Cookie", "authjs.session-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0", { append: true });
+    c.header("Set-Cookie", "__Secure-authjs.session-token=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0", { append: true });
+    c.header("Set-Cookie", "next-auth.session-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0", { append: true });
+    c.header("Set-Cookie", "__Secure-next-auth.session-token=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0", { append: true });
     return c.json({ success: true });
   })
 

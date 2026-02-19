@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { SERVER_URL } from "@/lib/api";
 
 import { z } from "zod";
 
@@ -25,7 +26,6 @@ function OnboardingStep1() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { plan } = routeApi.useSearch();
-  const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>("");
 

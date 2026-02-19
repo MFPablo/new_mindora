@@ -14,7 +14,7 @@ export const Route = createFileRoute("/dashboard/patient")({
   component: PatientDashboard,
 });
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+import { SERVER_URL } from "@/lib/api";
 
 function PatientDashboard() {
   const [isCrisisModalOpen, setIsCrisisModalOpen] = useState(false);

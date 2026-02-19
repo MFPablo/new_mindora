@@ -21,7 +21,7 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+import { SERVER_URL } from "@/lib/api";
 
 const routeApi = getRouteApi("/profile");
 

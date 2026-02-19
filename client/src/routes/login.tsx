@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { SERVER_URL } from "@/lib/api";
 
 import { redirectIfAuth, getHomeDashboard } from "@/lib/auth-guard";
 
@@ -30,9 +31,7 @@ function LoginPage() {
 
   const mutation = useMutation({
     mutationFn: async (data: { email: string; password: string; rememberMe: boolean }) => {
-      const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
-
-      const res = await fetch(`${serverUrl}/api/login`, {
+      const res = await fetch(`${SERVER_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -183,7 +182,7 @@ function LoginPage() {
               </div>
 
               <div className="mt-6">
-                <form action={`${import.meta.env.VITE_SERVER_URL || "http://localhost:3000"}/auth/signin/google`} method="POST">
+                <form action={`${SERVER_URL}/auth/signin/google`} method="POST">
                   <button
                     type="submit"
                     className="inline-flex w-full justify-center items-center gap-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 py-2.5 px-4 text-sm font-medium text-slate-700 dark:text-white shadow-sm hover:bg-slate-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-colors"

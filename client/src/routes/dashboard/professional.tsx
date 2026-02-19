@@ -1,14 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+import { requireAuth } from "@/lib/auth-guard";
 
 export const Route = createFileRoute("/dashboard/professional")({
+  beforeLoad: ({ context }) => requireAuth({ queryClient: context.queryClient, role: "professional" }),
   component: ProfessionalDashboard,
 });
 
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+
 function ProfessionalDashboard() {
-  const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+  const queryClient = useQueryClient();
 
   const { data: session } = useQuery({
     queryKey: ["session"],
@@ -19,7 +25,42 @@ function ProfessionalDashboard() {
     },
   });
 
+  const { data: profileSettings } = useQuery({
+    queryKey: ["profile-settings"],
+    queryFn: async () => {
+      const res = await fetch(`${SERVER_URL}/api/profile`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  const togglePrivacy = useMutation({
+    mutationFn: async (isPublic: boolean) => {
+      const res = await fetch(`${SERVER_URL}/api/professional/profile-settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ isProfilePublic: isPublic }),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile-settings"] });
+    },
+  });
+
   const user = session?.user;
+  const profile = profileSettings?.user;
+
+  // Profile enablement checks
+  const hasName = !!profile?.name;
+  const hasSpecialty = !!user?.specialty;
+  const hasLicense = !!profile?.licenseNumber;
+  const hasWorkingHours = !!user?.workingHours;
+  const isProfileEnabled = hasName && hasSpecialty && hasLicense && hasWorkingHours;
+
+  const [privacyLocal, setPrivacyLocal] = useState<boolean | null>(null);
+  const isPublic = privacyLocal ?? profile?.isProfilePublic ?? true;
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 font-display text-slate-800 dark:text-slate-200 min-h-screen flex flex-col antialiased">
@@ -49,6 +90,19 @@ function ProfessionalDashboard() {
               <span className="material-symbols-outlined text-[20px] group-hover:text-blue-600 transition-colors">description</span>
               <span className="font-medium">Documentos</span>
             </a>
+
+            {/* Public Profile Link */}
+            {user?.id && (
+              <a
+                href={`/professional/${user.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg transition-colors group"
+              >
+                <span className="material-symbols-outlined text-[20px] group-hover:text-blue-600 transition-colors">visibility</span>
+                <span className="font-medium">Mi Perfil Público</span>
+              </a>
+            )}
           </nav>
           <div className="p-4 mt-auto border-t border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
@@ -161,12 +215,87 @@ function ProfessionalDashboard() {
             </div>
 
             <div className="space-y-6">
+              {/* Profile Status Card */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-blue-600">badge</span>
+                  Estado del Perfil
+                </h2>
+
+                {/* Enablement Status */}
+                <div className="mb-4">
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
+                    isProfileEnabled
+                      ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                      : "bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800"
+                  }`}>
+                    <span className="material-symbols-outlined text-[18px]">{isProfileEnabled ? "check_circle" : "warning"}</span>
+                    {isProfileEnabled ? "Perfil habilitado" : "Perfil incompleto"}
+                  </div>
+                  {!isProfileEnabled && (
+                    <div className="mt-3 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      <p className="font-medium text-slate-700 dark:text-slate-300">Completa lo siguiente:</p>
+                      {!hasName && <p className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-red-500">close</span> Nombre completo</p>}
+                      {!hasSpecialty && <p className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-red-500">close</span> Especialidad</p>}
+                      {!hasLicense && <p className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-red-500">close</span> Matrícula profesional</p>}
+                      {!hasWorkingHours && <p className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] text-red-500">close</span> Horarios de atención</p>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Privacy Toggle */}
+                <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">Perfil público</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {isPublic ? "Visible para todos" : "Solo pacientes aprobados"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newVal = !isPublic;
+                        setPrivacyLocal(newVal);
+                        togglePrivacy.mutate(newVal);
+                      }}
+                      className={`relative w-12 h-7 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-600/50 ${
+                        isPublic ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                        isPublic ? "translate-x-5" : "translate-x-0"
+                      }`} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
               <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <span className="material-symbols-outlined text-blue-600">bolt</span>
                   Acciones Rápidas
                 </h2>
                 <div className="grid grid-cols-1 gap-3">
+                  {/* View Public Profile */}
+                  {user?.id && (
+                    <a
+                      href={`/professional/${user.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center gap-4 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 hover:from-blue-600 hover:to-indigo-600 hover:text-white border border-blue-100 dark:border-blue-900/30 transition-all duration-300 transform hover:-translate-y-1"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 group-hover:bg-white/20 flex items-center justify-center text-blue-600 group-hover:text-white transition-colors shadow-sm">
+                        <span className="material-symbols-outlined">visibility</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-slate-900 dark:text-white group-hover:text-white">Ver mi perfil público</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-white/80">Vista previa del paciente</p>
+                      </div>
+                      <span className="material-symbols-outlined ml-auto text-slate-400 group-hover:text-white/80 text-[20px]">open_in_new</span>
+                    </a>
+                  )}
+
                   <button className="group flex items-center gap-4 p-4 rounded-lg bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-600 hover:text-white border border-blue-100 dark:border-blue-900/30 transition-all duration-300 transform hover:-translate-y-1">
                     <div className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 group-hover:bg-white/20 flex items-center justify-center text-blue-600 group-hover:text-white transition-colors shadow-sm">
                       <span className="material-symbols-outlined">edit_note</span>

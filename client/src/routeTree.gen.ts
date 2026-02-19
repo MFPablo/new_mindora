@@ -15,11 +15,14 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as AccessDeniedRouteImport } from './routes/access-denied'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfessionalProfessionalIdRouteImport } from './routes/professional.$professionalId'
 import { Route as OnboardingStep3RouteImport } from './routes/onboarding/step-3'
 import { Route as OnboardingStep2RouteImport } from './routes/onboarding/step-2'
 import { Route as OnboardingStep1RouteImport } from './routes/onboarding/step-1'
 import { Route as DashboardProfessionalRouteImport } from './routes/dashboard/professional'
+import { Route as DashboardPatientRouteImport } from './routes/dashboard/patient'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -51,11 +54,22 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccessDeniedRoute = AccessDeniedRouteImport.update({
+  id: '/access-denied',
+  path: '/access-denied',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfessionalProfessionalIdRoute =
+  ProfessionalProfessionalIdRouteImport.update({
+    id: '/professional/$professionalId',
+    path: '/professional/$professionalId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OnboardingStep3Route = OnboardingStep3RouteImport.update({
   id: '/onboarding/step-3',
   path: '/onboarding/step-3',
@@ -76,101 +90,127 @@ const DashboardProfessionalRoute = DashboardProfessionalRouteImport.update({
   path: '/dashboard/professional',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardPatientRoute = DashboardPatientRouteImport.update({
+  id: '/dashboard/patient',
+  path: '/dashboard/patient',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/professional': typeof DashboardProfessionalRoute
   '/onboarding/step-1': typeof OnboardingStep1Route
   '/onboarding/step-2': typeof OnboardingStep2Route
   '/onboarding/step-3': typeof OnboardingStep3Route
+  '/professional/$professionalId': typeof ProfessionalProfessionalIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/professional': typeof DashboardProfessionalRoute
   '/onboarding/step-1': typeof OnboardingStep1Route
   '/onboarding/step-2': typeof OnboardingStep2Route
   '/onboarding/step-3': typeof OnboardingStep3Route
+  '/professional/$professionalId': typeof ProfessionalProfessionalIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/access-denied': typeof AccessDeniedRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/dashboard/patient': typeof DashboardPatientRoute
   '/dashboard/professional': typeof DashboardProfessionalRoute
   '/onboarding/step-1': typeof OnboardingStep1Route
   '/onboarding/step-2': typeof OnboardingStep2Route
   '/onboarding/step-3': typeof OnboardingStep3Route
+  '/professional/$professionalId': typeof ProfessionalProfessionalIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/access-denied'
     | '/forgot-password'
     | '/login'
     | '/pricing'
     | '/profile'
     | '/reset-password'
     | '/signup'
+    | '/dashboard/patient'
     | '/dashboard/professional'
     | '/onboarding/step-1'
     | '/onboarding/step-2'
     | '/onboarding/step-3'
+    | '/professional/$professionalId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/access-denied'
     | '/forgot-password'
     | '/login'
     | '/pricing'
     | '/profile'
     | '/reset-password'
     | '/signup'
+    | '/dashboard/patient'
     | '/dashboard/professional'
     | '/onboarding/step-1'
     | '/onboarding/step-2'
     | '/onboarding/step-3'
+    | '/professional/$professionalId'
   id:
     | '__root__'
     | '/'
+    | '/access-denied'
     | '/forgot-password'
     | '/login'
     | '/pricing'
     | '/profile'
     | '/reset-password'
     | '/signup'
+    | '/dashboard/patient'
     | '/dashboard/professional'
     | '/onboarding/step-1'
     | '/onboarding/step-2'
     | '/onboarding/step-3'
+    | '/professional/$professionalId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccessDeniedRoute: typeof AccessDeniedRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   PricingRoute: typeof PricingRoute
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  DashboardPatientRoute: typeof DashboardPatientRoute
   DashboardProfessionalRoute: typeof DashboardProfessionalRoute
   OnboardingStep1Route: typeof OnboardingStep1Route
   OnboardingStep2Route: typeof OnboardingStep2Route
   OnboardingStep3Route: typeof OnboardingStep3Route
+  ProfessionalProfessionalIdRoute: typeof ProfessionalProfessionalIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -217,11 +257,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/access-denied': {
+      id: '/access-denied'
+      path: '/access-denied'
+      fullPath: '/access-denied'
+      preLoaderRoute: typeof AccessDeniedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/professional/$professionalId': {
+      id: '/professional/$professionalId'
+      path: '/professional/$professionalId'
+      fullPath: '/professional/$professionalId'
+      preLoaderRoute: typeof ProfessionalProfessionalIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding/step-3': {
@@ -252,21 +306,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardProfessionalRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/patient': {
+      id: '/dashboard/patient'
+      path: '/dashboard/patient'
+      fullPath: '/dashboard/patient'
+      preLoaderRoute: typeof DashboardPatientRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccessDeniedRoute: AccessDeniedRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   PricingRoute: PricingRoute,
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  DashboardPatientRoute: DashboardPatientRoute,
   DashboardProfessionalRoute: DashboardProfessionalRoute,
   OnboardingStep1Route: OnboardingStep1Route,
   OnboardingStep2Route: OnboardingStep2Route,
   OnboardingStep3Route: OnboardingStep3Route,
+  ProfessionalProfessionalIdRoute: ProfessionalProfessionalIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

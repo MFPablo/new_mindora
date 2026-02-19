@@ -34,12 +34,53 @@ model User {
   isProfessionalActive Boolean @default(false)
   workingHours  Json?
   role          String    @default("patient")
+
+  // Public profile fields
+  licenseNumber    String?
+  bio              String?
+  languages        String[]  @default([])
+  sessionPrice     Float?
+  isProfilePublic  Boolean   @default(true)
+  isProfileEnabled Boolean   @default(false)
+  minAnticipationHours Int    @default(1)
+
   accounts      Account[]
   sessions      Session[]
   promoRedemptions PromoKeyRedemption[]
   transactions  Transaction[]
+  patientRelations       PatientProfessionalRelation[] @relation("PatientRelations")
+  professionalRelations  PatientProfessionalRelation[] @relation("ProfessionalRelations")
+  patientAppointments       Appointment[] @relation("PatientAppointments")
+  professionalAppointments  Appointment[] @relation("ProfessionalAppointments")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model PatientProfessionalRelation {
+  id               String   @id @default(cuid())
+  patientId        String
+  professionalId   String
+  status           String   @default("pending") // pending | approved | rejected
+  patient          User     @relation("PatientRelations", fields: [patientId], references: [id], onDelete: Cascade)
+  professional     User     @relation("ProfessionalRelations", fields: [professionalId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+
+  @@unique([patientId, professionalId])
+}
+
+model Appointment {
+  id               String   @id @default(cuid())
+  patientId        String
+  professionalId   String
+  dateTime         DateTime
+  status           String   @default("pending") // pending | confirmed | cancelled
+  notes            String?
+  patient          User     @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  professional     User     @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([professionalId, dateTime])
 }
 
 model Transaction {

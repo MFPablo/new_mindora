@@ -7,7 +7,10 @@ import { Footer } from "@/components/Footer";
 
 import { z } from "zod";
 
+import { requireAuth } from "@/lib/auth-guard";
+
 export const Route = createFileRoute("/onboarding/step-1")({
+  beforeLoad: ({ context }) => requireAuth({ queryClient: context.queryClient }),
   validateSearch: (search: Record<string, unknown>) => {
     return z.object({
       plan: z.string().optional(),

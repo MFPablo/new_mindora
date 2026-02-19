@@ -45,9 +45,19 @@ async function main() {
       role: 'professional',
       onboardingStep: 3,
       specialty: 'Psicología Clínica',
+      licenseNumber: 'MN-2024-1234',
+      bio: 'Especialista en terapia cognitivo-conductual con más de 12 años de experiencia. Mi enfoque combina técnicas basadas en evidencia con prácticas de mindfulness para ayudarte a construir resiliencia y encontrar equilibrio. Creo en crear un espacio seguro y sin juicios para la sanación.',
+      languages: ['Español', 'Inglés'],
+      sessionPrice: 180.0,
+      isProfilePublic: true,
+      isProfileEnabled: true,
+      minAnticipationHours: 1,
       workingHours: {
         monday: { start: '09:00', end: '18:00' },
         tuesday: { start: '09:00', end: '18:00' },
+        wednesday: { start: '09:00', end: '18:00' },
+        thursday: { start: '09:00', end: '18:00' },
+        friday: { start: '09:00', end: '14:00' },
       }
     },
     create: {
@@ -58,9 +68,19 @@ async function main() {
       isProfessionalActive: true,
       onboardingStep: 3,
       specialty: 'Psicología Clínica',
+      licenseNumber: 'MN-2024-1234',
+      bio: 'Especialista en terapia cognitivo-conductual con más de 12 años de experiencia. Mi enfoque combina técnicas basadas en evidencia con prácticas de mindfulness para ayudarte a construir resiliencia y encontrar equilibrio. Creo en crear un espacio seguro y sin juicios para la sanación.',
+      languages: ['Español', 'Inglés'],
+      sessionPrice: 180.0,
+      isProfilePublic: true,
+      isProfileEnabled: true,
+      minAnticipationHours: 1,
       workingHours: {
         monday: { start: '09:00', end: '18:00' },
         tuesday: { start: '09:00', end: '18:00' },
+        wednesday: { start: '09:00', end: '18:00' },
+        thursday: { start: '09:00', end: '18:00' },
+        friday: { start: '09:00', end: '14:00' },
       }
     },
   });

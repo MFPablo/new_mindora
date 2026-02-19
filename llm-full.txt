@@ -1,0 +1,99 @@
+# New Mindora - Full Platform Documentation
+
+Comprehensive technical documentation for the New Mindora platform, designed for LLM context.
+
+## 1. Technical Stack
+- **Runtime**: Bun 1.1.x / 1.2.x
+- **Monorepo**: Turborepo manages `./client`, `./server`, and `./shared`.
+- **Backend Framework**: Hono
+- **ORM/Database**: Prisma with PostgreSQL (Production) / SQLite (Dev).
+- **Frontend**: React 19 + Vite.
+- **Routing**: TanStack Router (File-based).
+- **Styling**: Tailwind CSS v4, Material Symbols (Outlined).
+- **E2E Testing**: Playwright.
+
+---
+
+## 2. Database Schema (Prisma)
+
+### Main Models
+- **User**: Core identity. Roles: `patient`, `professional`, `admin`.
+    - `workingHours`: JSON field storing availability schedule.
+    - `minAnticipationHours`: Minimum time before a session for booking.
+    - `sessionPrice`: Professional's rate per session.
+- **Appointment**: Represents a session between a patient and professional.
+    - Statuses: `pending`, `confirmed`, `cancelled`.
+    - Constraint: Unique on `(professionalId, dateTime)`.
+- **PatientProfessionalRelation**: Links patients to professionals for private profiles.
+    - Statuses: `pending`, `approved`, `rejected`.
+- **Transaction**: Records of plan payments and session billing.
+- **PromoKey**: Discount/Free-use codes with usage limits.
+
+---
+
+## 3. API Reference (Hono)
+
+### Authentication
+- `POST /api/signup`: Register new user.
+- `POST /api/login`: Standard email/password login. Sets `authjs.session-token` cookie.
+- `POST /api/logout`: Clears session cookie.
+
+### Profile & Settings
+- `GET /api/profile`: Get current user info.
+- `PUT /api/profile`: Update name, email, phone.
+- `POST /api/profile/upload-avatar`: Image upload via Cloudinary.
+- `PUT /api/profile/password`: Secure password change.
+- `GET /api/profile/billing`: Get user transaction history.
+
+### Onboarding
+- `PUT /api/onboarding/profile`: Step 1 - Basic info.
+- `PUT /api/onboarding/agenda`: Step 2 - Availability and specialty.
+- `POST /api/onboarding/finalize`: Step 3 - Plan selection and role activation.
+
+### Professional & Booking
+- `GET /api/professional/:id/public`: Public profile view with access control logic.
+- `PUT /api/professional/profile-settings`: Update bio, price, visibility.
+- `GET /api/professional/:id/appointments?weekStart=...`: Get booked slots for a week.
+- `POST /api/appointments`: Create a booking with validation (anticipation, availability).
+
+### Patient Features
+- `GET /api/patient/dashboard`: Stats, next session, upcoming sessions, and professional list.
+
+---
+
+## 4. Frontend Route Map (TanStack Router)
+
+Located in `client/src/routes/`:
+- `/`: Home / Landing.
+- `/login`, `/signup`: Auth pages.
+- `/profile`: Shared user settings.
+- `/dashboard/patient`: Patient-specific overview (Stats, SOS, Sessions).
+- `/dashboard/professional`: Professional-specific overview (Agenda, Settings, Stats).
+- `/onboarding/step-[1-3]`: Multi-step professional onboarding.
+- `/professional/$professionalId`: Public/Private profile and booking calendar.
+- `/access-denied`: Role mismatch redirection target.
+- `/pricing`: Subscription plan overview.
+
+---
+
+## 5. Security Architecture
+- **JWT Authentication**: Managed via `@auth/core` and decoded in backend middleware.
+- **Role Guards**: 
+  - Backend: `.use("/api/patient/*", roleGuard("patient"))`
+  - Frontend: `beforeLoad: () => requireAuth({ role: 'patient' })`
+- **Anticipation Logic**: Backend validates that bookings are made at least `minAnticipationHours` in advance.
+- **Slot Isolation**: Calendar logic ensures no overlapping appointments for professionals.
+
+---
+
+## 6. Development Workflow
+- `dev`: `turbo dev` (Client on port 5173, Server on port 3000).
+- `db:migrate`: `prisma migrate dev`.
+- `db:seed`: `prisma db seed`.
+- `test`: `npx playwright test`.
+
+## 7. UI/UX Standards
+- Use **Material Symbols Outlined** for all icons.
+- **Responsive Design**: Mobile-first for dashboards.
+- **Micro-interactions**: Hover states on calendar slots and dashboard cards.
+- **Dark Mode**: Fully supported via Tailwind's `dark:` classes.

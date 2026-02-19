@@ -6,7 +6,10 @@ import { Footer } from "@/components/Footer";
 
 import { z } from "zod";
 
+import { requireAuth } from "@/lib/auth-guard";
+
 export const Route = createFileRoute("/profile")({
+  beforeLoad: ({ context }) => requireAuth({ queryClient: context.queryClient }),
   validateSearch: (search: Record<string, unknown>) => {
     return z.object({
       section: z.string().optional(),

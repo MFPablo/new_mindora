@@ -1,0 +1,42 @@
+# New Mindora Platform Information
+
+A modern mental health platform monorepo built with Bun, Hono, Vite, and React.
+
+## Tech Stack
+- **Runtime**: Bun (v1.2.4+)
+- **Monorepo Management**: Turborepo
+- **Backend**: Hono (Node runtime / Bun)
+- **Database / ORM**: Prisma (SQLite for development)
+- **Frontend**: React 19, Vite
+- **Routing**: TanStack Router (File-based)
+- **State Management**: TanStack Query (React Query)
+- **Styling**: Tailwind CSS 4, Google Material Symbols
+- **Authentication**: Auth.js (via @hono/auth-js)
+- **Testing**: Playwright (E2E)
+
+## Project Structure
+- `/client`: React frontend application. Uses file-based routing in `src/routes`.
+- `/server`: Hono backend API. Main logic in `src/index.ts`.
+- `/shared`: Shared types, Zod schemas, and utility functions.
+- `/e2e`: Playwright end-to-end tests.
+- `/server/prisma`: Database schema and seed data.
+
+## Key Architectural Patterns
+- **Authentication Middleware**: Centralized JWT decoding and session extraction in `server/src/index.ts` middleware.
+- **Role-Based Access Control**:
+    - Backend: `roleGuard` middleware to restrict `/api/patient/*` and `/api/professional/*` endpoints.
+    - Frontend: `requireAuth` utility in `client/src/lib/auth-guard.ts` for route protection in TanStack Router's `beforeLoad`.
+- **Booking System**: Interactive calendar with anticipation logic (blocks slots within X hours of current time) and dynamic availability fetching.
+- **Crisis Support**: Global "SOS" floating button in the patient dashboard for immediate emergency contacts.
+
+## Commands
+- `bun run dev`: Start both client and server in development mode.
+- `bun run build`: Build the entire workspace.
+- `bun run test`: Run all tests.
+- `bun run initiate`: Initialize database (migrate and seed).
+- `npx playwright test`: Run E2E tests.
+
+## Conventions
+- Use `es` locale for date formatting (Spanish).
+- Icons follow Google Material Symbols syntax (e.g., `<span class="material-symbols-outlined">...</span>`).
+- Components prioritize modern "premium" aesthetics with dark mode support.

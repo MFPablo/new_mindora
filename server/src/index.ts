@@ -33,6 +33,74 @@ export const app = new Hono<{
     });
   })
 
+  // Middleware to verify authentication and extract user info
+  .use("/api/*", async (c, next) => {
+    // Skip auth for signup and login
+    if (c.req.path === "/api/signup" || c.req.path === "/api/login" || c.req.path.includes("/public")) {
+      return await next();
+    }
+
+    const { decode } = await import("@auth/core/jwt");
+    const cookie = c.req.header("Cookie") || "";
+    const match = cookie.match(/authjs\.session-token=([^;]+)/);
+    
+    if (!match) {
+      return c.json({ success: false, message: "No autenticado" }, 401);
+    }
+
+    try {
+      const token = await decode({ 
+        token: match[1], 
+        secret: process.env.AUTH_SECRET!, 
+        salt: "authjs.session-token" 
+      });
+
+      if (!token?.sub) {
+        return c.json({ success: false, message: "Token inválido" }, 401);
+      }
+
+      // Fetch user role from DB to ensure it's up to date and valid
+      const user = await prisma.user.findUnique({
+        where: { id: token.sub },
+        select: { id: true, role: true }
+      });
+
+      if (!user) {
+        return c.json({ success: false, message: "Usuario no encontrado" }, 404);
+      }
+
+      // Attach to context
+      c.set("userId" as any, user.id);
+      c.set("userRole" as any, user.role);
+
+      return await next();
+    } catch (error) {
+      console.error("Auth middleware error:", error);
+      return c.json({ success: false, message: "Error de autenticación" }, 401);
+    }
+  })
+
+  // Role-based helper
+  .use("/api/patient/*", async (c, next) => {
+    const role = c.get("userRole" as any);
+    if (role !== "patient") {
+      return c.json({ success: false, message: "Acceso denegado: Se requiere rol de paciente" }, 403);
+    }
+    return await next();
+  })
+  .use("/api/professional/*", async (c, next) => {
+    // Allow GET access to appointments for patients (for booking)
+    if (c.req.path.includes("/public") || (c.req.method === "GET" && c.req.path.includes("/appointments"))) {
+       return await next();
+    }
+    
+    const role = c.get("userRole" as any);
+    if (role !== "professional") {
+      return c.json({ success: false, message: "Acceso denegado: Se requiere rol de profesional" }, 403);
+    }
+    return await next();
+  })
+
   .get("/hello", async (c) => {
     const data: ApiResponse = {
       message: "Hello BHVR!",
@@ -147,35 +215,24 @@ export const app = new Hono<{
   })
 
   .get("/api/profile", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
-    const user = await prisma.user.findUnique({ where: { id: token.sub }, select: { id: true, name: true, email: true, phone: true, image: true, role: true } });
+    const userId = c.get("userId" as any);
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId }, 
+      select: { id: true, name: true, email: true, phone: true, image: true, role: true } 
+    });
     if (!user) return c.json({ success: false, message: "Usuario no encontrado" }, 404);
 
     return c.json({ success: true, user });
   })
 
   .put("/api/profile", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const body = await c.req.json();
     const { name, email, phone } = body;
 
     try {
       const updatedUser = await prisma.user.update({
-        where: { id: token.sub },
+        where: { id: userId },
         data: {
           ...(name !== undefined && { name }),
           ...(email !== undefined && { email }),
@@ -192,14 +249,7 @@ export const app = new Hono<{
   })
 
   .post("/api/profile/upload-avatar", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const cloudinaryUrl = process.env.CLOUDINARY_URL || "";
     const cloudMatch = cloudinaryUrl.match(/cloudinary:\/\/(\d+):([^@]+)@(.+)/);
     if (!cloudMatch) return c.json({ success: false, message: "Cloudinary no configurado" }, 500);
@@ -240,7 +290,7 @@ export const app = new Hono<{
       }
 
       await prisma.user.update({
-        where: { id: token.sub },
+        where: { id: userId },
         data: { image: cloudResData.secure_url },
       });
 
@@ -251,18 +301,11 @@ export const app = new Hono<{
   })
 
   .put("/api/profile/password", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const body = await c.req.json();
     const { currentPassword, newPassword } = body;
 
-    const user = await prisma.user.findUnique({ where: { id: token.sub } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.password) return c.json({ success: false, message: "Usuario no encontrado" }, 404);
 
     const isValid = await Bun.password.verify(currentPassword, user.password);
@@ -270,7 +313,7 @@ export const app = new Hono<{
 
     const hashedPassword = await Bun.password.hash(newPassword);
     await prisma.user.update({
-      where: { id: token.sub },
+      where: { id: userId },
       data: { password: hashedPassword },
     });
 
@@ -278,14 +321,7 @@ export const app = new Hono<{
   })
 
   .post("/api/promo-key/redeem", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const { key } = await c.req.json();
     if (!key) return c.json({ success: false, message: "El código es obligatorio" }, 400);
 
@@ -302,19 +338,19 @@ export const app = new Hono<{
       if (promoKey.used >= promoKey.uses) return c.json({ success: false, message: "Sin usos disponibles" }, 400);
 
       const existingRedemption = await prisma.promoKeyRedemption.findUnique({
-        where: { userId_promoKeyId: { userId: token.sub, promoKeyId: promoKey.id } },
+        where: { userId_promoKeyId: { userId, promoKeyId: promoKey.id } },
       });
 
       if (existingRedemption) return c.json({ success: false, message: "Ya canjeado" }, 400);
 
       const result = await prisma.$transaction(async (tx) => {
-        await tx.promoKeyRedemption.create({ data: { userId: token.sub!, promoKeyId: promoKey.id } });
+        await tx.promoKeyRedemption.create({ data: { userId, promoKeyId: promoKey.id } });
         await tx.promoKey.update({ where: { id: promoKey.id }, data: { used: { increment: 1 } } });
 
         // Create a $0 transaction for history visibility
         await tx.transaction.create({
           data: {
-            userId: token.sub!,
+            userId,
             amount: 0,
             concept: `Canje Código: ${promoKey.key}`,
             status: "COMPLETED",
@@ -332,20 +368,13 @@ export const app = new Hono<{
 
   // ONBOARDING ENDPOINTS
   .put("/api/onboarding/profile", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const { phone, address, image } = await c.req.json();
     if (!phone || !address) return c.json({ success: false, message: "Phone y Address requeridos" }, 400);
 
     try {
       await prisma.user.update({
-        where: { id: token.sub },
+        where: { id: userId },
         data: {
           phone,
           address,
@@ -361,19 +390,12 @@ export const app = new Hono<{
   })
 
   .put("/api/onboarding/agenda", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const data = await c.req.json();
 
     try {
       await prisma.user.update({
-        where: { id: token.sub },
+        where: { id: userId },
         data: {
           workingHours: data,
           specialty: data.specialty || "Terapeuta",
@@ -388,14 +410,7 @@ export const app = new Hono<{
   })
 
   .post("/api/onboarding/finalize", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const { promoKey, plan } = await c.req.json();
 
     try {
@@ -405,17 +420,17 @@ export const app = new Hono<{
           if (pk && pk.used < pk.uses) {
             // Check if already redeemed to avoid unique constraint error
             const existing = await tx.promoKeyRedemption.findUnique({
-              where: { userId_promoKeyId: { userId: token.sub!, promoKeyId: pk.id } }
+              where: { userId_promoKeyId: { userId, promoKeyId: pk.id } }
             });
 
             if (!existing) {
-              await tx.promoKeyRedemption.create({ data: { userId: token.sub!, promoKeyId: pk.id } });
+              await tx.promoKeyRedemption.create({ data: { userId, promoKeyId: pk.id } });
               await tx.promoKey.update({ where: { id: pk.id }, data: { used: { increment: 1 } } });
 
               // Create a transaction for history
               await tx.transaction.create({
                 data: {
-                  userId: token.sub!,
+                  userId,
                   amount: 0,
                   concept: `Onboarding Promo: ${pk.key}`,
                   status: "COMPLETED",
@@ -430,7 +445,7 @@ export const app = new Hono<{
           const concept = plan === "professional_monthly" ? "Plan Premium Mensual" : "Plan Premium Anual";
           await tx.transaction.create({
             data: {
-              userId: token.sub!,
+              userId,
               amount,
               concept,
               plan,
@@ -439,7 +454,7 @@ export const app = new Hono<{
         }
 
         return await tx.user.update({
-          where: { id: token.sub },
+          where: { id: userId },
           data: {
             onboardingStep: 3,
             isProfessionalActive: true,
@@ -448,7 +463,7 @@ export const app = new Hono<{
         });
       });
 
-      console.log(`[ONBOARDING] Finalized for user ${token.sub}. Role set to professional.`);
+      console.log(`[ONBOARDING] Finalized for user ${userId}. Role set to professional.`);
 
       return c.json({ success: true, message: "¡Suscripción activa! Bienvenido a Mindora Pro", user: result });
     } catch (error) {
@@ -458,21 +473,14 @@ export const app = new Hono<{
   })
 
   .get("/api/profile/billing", async (c) => {
-    const { decode } = await import("@auth/core/jwt");
-    const cookie = c.req.header("Cookie") || "";
-    const match = cookie.match(/authjs\.session-token=([^;]+)/);
-    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
-
-    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
+    const userId = c.get("userId" as any);
     const transactions = await prisma.transaction.findMany({
-      where: { userId: token.sub },
+      where: { userId },
       orderBy: { createdAt: "desc" },
     });
 
     const promoRedemptions = await prisma.promoKeyRedemption.findMany({
-      where: { userId: token.sub },
+      where: { userId },
       include: { promoKey: true },
       orderBy: { redeemedAt: "desc" },
     });
@@ -483,6 +491,352 @@ export const app = new Hono<{
         transactions,
         promoRedemptions
       }
+    });
+  })
+
+  // PUBLIC PROFESSIONAL PROFILE
+  .get("/api/professional/:id/public", async (c) => {
+    const professionalId = c.req.param("id");
+
+    const professional = await prisma.user.findUnique({
+      where: { id: professionalId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        specialty: true,
+        address: true,
+        phone: true,
+        licenseNumber: true,
+        bio: true,
+        languages: true,
+        sessionPrice: true,
+        isProfilePublic: true,
+        isProfileEnabled: true,
+        isProfessionalActive: true,
+        workingHours: true,
+        minAnticipationHours: true,
+        role: true,
+      },
+    });
+
+    if (!professional || professional.role !== "professional") {
+      return c.json({ success: false, message: "Profesional no encontrado" }, 404);
+    }
+
+    // Check if profile is enabled (all required fields present)
+    const isEnabled = professional.isProfileEnabled &&
+      professional.isProfessionalActive &&
+      professional.workingHours != null &&
+      professional.licenseNumber != null &&
+      professional.name != null &&
+      professional.specialty != null;
+
+    if (!isEnabled) {
+      return c.json({ success: false, message: "El perfil de este profesional no está disponible" }, 404);
+    }
+
+    // If profile is public, return it
+    if (professional.isProfilePublic) {
+      const { isProfilePublic, isProfileEnabled, isProfessionalActive, ...publicData } = professional;
+      return c.json({ success: true, professional: publicData, isPublic: true });
+    }
+
+    // Profile is private — check if requester has an approved relation
+    const { decode } = await import("@auth/core/jwt");
+    const cookie = c.req.header("Cookie") || "";
+    const match = cookie.match(/authjs\.session-token=([^;]+)/);
+
+    if (!match) {
+      return c.json({ success: false, message: "Este perfil es privado", isPublic: false }, 403);
+    }
+
+    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
+    if (!token?.sub) {
+      return c.json({ success: false, message: "Este perfil es privado", isPublic: false }, 403);
+    }
+
+    // Allow the professional themselves to see their own profile
+    if (token.sub === professionalId) {
+      const { isProfilePublic, isProfileEnabled, isProfessionalActive, ...publicData } = professional;
+      return c.json({ success: true, professional: publicData, isPublic: false, isOwner: true });
+    }
+
+    const relation = await prisma.patientProfessionalRelation.findUnique({
+      where: {
+        patientId_professionalId: {
+          patientId: token.sub,
+          professionalId,
+        },
+      },
+    });
+
+    if (!relation || relation.status !== "approved") {
+      return c.json({ success: false, message: "Este perfil es privado. Necesitas aprobación del profesional.", isPublic: false }, 403);
+    }
+
+    const { isProfilePublic, isProfileEnabled, isProfessionalActive, ...publicData } = professional;
+    return c.json({ success: true, professional: publicData, isPublic: false });
+  })
+
+  .put("/api/professional/profile-settings", async (c) => {
+    const { decode } = await import("@auth/core/jwt");
+    const cookie = c.req.header("Cookie") || "";
+    const match = cookie.match(/authjs\.session-token=([^;]+)/);
+    if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
+
+    const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
+    if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
+
+    const user = await prisma.user.findUnique({ where: { id: token.sub } });
+    if (!user || user.role !== "professional") {
+      return c.json({ success: false, message: "Solo profesionales pueden actualizar estos ajustes" }, 403);
+    }
+
+    const body = await c.req.json();
+    const { isProfilePublic, licenseNumber, bio, languages, sessionPrice } = body;
+
+    try {
+      const dataToUpdate: Record<string, unknown> = {};
+      if (isProfilePublic !== undefined) dataToUpdate.isProfilePublic = isProfilePublic;
+      if (licenseNumber !== undefined) dataToUpdate.licenseNumber = licenseNumber;
+      if (bio !== undefined) dataToUpdate.bio = bio;
+      if (languages !== undefined) dataToUpdate.languages = languages;
+      if (sessionPrice !== undefined) dataToUpdate.sessionPrice = sessionPrice;
+
+      // Recalculate isProfileEnabled
+      const updatedLicense = licenseNumber !== undefined ? licenseNumber : user.licenseNumber;
+      const isEnabled = updatedLicense != null && user.name != null && user.specialty != null && user.workingHours != null;
+      dataToUpdate.isProfileEnabled = isEnabled;
+
+      const updatedUser = await prisma.user.update({
+        where: { id: token.sub },
+        data: dataToUpdate,
+        select: {
+          id: true,
+          isProfilePublic: true,
+          isProfileEnabled: true,
+          licenseNumber: true,
+          bio: true,
+          languages: true,
+          sessionPrice: true,
+        },
+      });
+
+      return c.json({ success: true, settings: updatedUser });
+    } catch (error) {
+      console.error("Error updating profile settings:", error);
+      return c.json({ success: false, message: "Error al actualizar ajustes" }, 500);
+    }
+  })
+
+  // GET booked appointments for a professional in a given week
+  .get("/api/professional/:id/appointments", async (c) => {
+    const professionalId = c.req.param("id");
+    const weekStart = c.req.query("weekStart");
+
+    if (!weekStart) {
+      return c.json({ success: false, message: "weekStart query param requerido (YYYY-MM-DD)" }, 400);
+    }
+
+    const startDate = new Date(weekStart + "T00:00:00");
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 7);
+
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        professionalId,
+        dateTime: { gte: startDate, lt: endDate },
+        status: { not: "cancelled" },
+      },
+      select: {
+        id: true,
+        dateTime: true,
+        status: true,
+      },
+    });
+
+    return c.json({ success: true, appointments });
+  })
+
+  // CREATE an appointment (booking)
+  .post("/api/appointments", async (c) => {
+    const userId = c.get("userId" as any);
+    const body = await c.req.json();
+    const { professionalId, dateTime, notes } = body;
+
+    if (!professionalId || !dateTime) {
+      return c.json({ success: false, message: "professionalId y dateTime son requeridos" }, 400);
+    }
+
+    // Get professional
+    const professional = await prisma.user.findUnique({
+      where: { id: professionalId },
+      select: {
+        id: true,
+        role: true,
+        workingHours: true,
+        minAnticipationHours: true,
+        isProfileEnabled: true,
+        isProfessionalActive: true,
+      },
+    });
+
+    if (!professional || professional.role !== "professional" || !professional.isProfileEnabled || !professional.isProfessionalActive) {
+      return c.json({ success: false, message: "Profesional no disponible" }, 404);
+    }
+
+    const appointmentDate = new Date(dateTime);
+    if (isNaN(appointmentDate.getTime())) {
+      return c.json({ success: false, message: "Fecha inválida" }, 400);
+    }
+    
+    const now = new Date();
+
+    // Check: not in the past
+    if (appointmentDate <= now) {
+      return c.json({ success: false, message: "No puedes agendar turnos en el pasado" }, 400);
+    }
+
+    // Check: respects min anticipation
+    const minMs = professional.minAnticipationHours * 60 * 60 * 1000;
+    if (appointmentDate.getTime() - now.getTime() < minMs) {
+      return c.json({ success: false, message: `Debes reservar con al menos ${professional.minAnticipationHours} hora(s) de anticipación` }, 400);
+    }
+
+    // Check: slot is within working hours
+    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const dayName = dayNames[appointmentDate.getDay()]; // Guaranteed to be string 0-6 if date is valid
+    
+    // Explicitly cast to unknown then to specific type to avoid Prisma Json type issues
+    const wh = professional.workingHours as unknown as Record<string, { start: string; end: string }> | null;
+    
+    if (!wh || !dayName || !wh[dayName]) {
+      return c.json({ success: false, message: "Este profesional no atiende en este día" }, 400);
+    }
+
+    const slotHour = appointmentDate.getHours();
+    const dayConfig = wh[dayName];
+    if (!dayConfig) {
+       return c.json({ success: false, message: "Este profesional no atiende en este día" }, 400);
+    }
+    
+    const startParts = dayConfig.start.split(":");
+    const endParts = dayConfig.end.split(":");
+    const startH = Number(startParts[0]);
+    const endH = Number(endParts[0]);
+    
+    if (slotHour < startH || slotHour >= endH) {
+      return c.json({ success: false, message: "El horario seleccionado está fuera del rango de atención" }, 400);
+    }
+
+    // Check: slot not already booked
+    const existing = await prisma.appointment.findUnique({
+      where: {
+        professionalId_dateTime: {
+          professionalId,
+          dateTime: appointmentDate,
+        },
+      },
+    });
+
+    if (existing && existing.status !== "cancelled") {
+      return c.json({ success: false, message: "Este horario ya está reservado" }, 409);
+    }
+
+    try {
+      const appointment = await prisma.appointment.create({
+        data: {
+          patientId: userId,
+          professionalId,
+          dateTime: appointmentDate,
+          notes: notes || null,
+        },
+        select: {
+          id: true,
+          dateTime: true,
+          status: true,
+          professional: { select: { name: true, specialty: true } },
+        },
+      });
+
+      return c.json({ success: true, appointment });
+    } catch (error) {
+      console.error("Error creating appointment:", error);
+      return c.json({ success: false, message: "Error al crear la reserva" }, 500);
+    }
+  })
+
+  .get("/api/patient/dashboard", async (c) => {
+    const patientId = c.get("userId" as any);
+
+    // Fetch next session (first future confirmed appointment)
+    const nextSession = await prisma.appointment.findFirst({
+      where: {
+        patientId,
+        dateTime: { gte: new Date() },
+        status: "confirmed",
+      },
+      orderBy: { dateTime: "asc" },
+      include: {
+        professional: {
+          select: { id: true, name: true, specialty: true, image: true },
+        },
+      },
+    });
+
+    // Fetch upcoming sessions (limit 5)
+    const upcomingSessions = await prisma.appointment.findMany({
+      where: {
+        patientId,
+        dateTime: { gte: new Date() },
+        status: "confirmed",
+      },
+      orderBy: { dateTime: "asc" },
+      take: 5,
+      include: {
+        professional: {
+          select: { id: true, name: true, image: true, specialty: true },
+        },
+      },
+    });
+
+    // Fetch "My Professionals" (distinct professionals from appointments)
+    const appointmentsWithPros = await prisma.appointment.findMany({
+      where: { patientId },
+      select: { professionalId: true },
+      distinct: ["professionalId"],
+    });
+
+    const professionalIds = appointmentsWithPros.map(a => a.professionalId);
+
+    const myProfessionals = await prisma.user.findMany({
+      where: {
+        id: { in: professionalIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        specialty: true,
+        role: true,
+      },
+      take: 4,
+    });
+
+    // Mock stats
+    const stats = {
+      teamCount: myProfessionals.length,
+      resourcesCount: 5, // Mock
+    };
+
+    return c.json({
+      success: true,
+      nextSession,
+      upcomingSessions,
+      myProfessionals,
+      stats,
     });
   });
 

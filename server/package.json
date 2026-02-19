@@ -15,7 +15,11 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "concurrently \"bun --watch run src/index.ts\" \"tsc --watch\""
+    "dev": "concurrently \"bun --watch run src/index.ts\" \"tsc --watch\"",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:init": "prisma migrate dev && prisma db seed",
+    "initiate": "bun run db:init"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",

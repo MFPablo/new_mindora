@@ -5,6 +5,7 @@ import { signupSchema, type SignupInput } from "shared";
 import { useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { getHomeDashboard } from "@/lib/auth-guard";
+import { SERVER_URL } from "@/lib/api";
 
 const routeApi = getRouteApi("/signup");
 
@@ -32,10 +33,8 @@ export function SignupForm() {
 
   const mutation = useMutation({
     mutationFn: async (data: SignupInput) => {
-      const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
-
       // 1. Register User
-      const signupRes = await fetch(`${serverUrl}/api/signup`, {
+      const signupRes = await fetch(`${SERVER_URL}/api/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -48,7 +47,7 @@ export function SignupForm() {
       }
 
       // 2. Auto-login
-      const loginRes = await fetch(`${serverUrl}/api/login`, {
+      const loginRes = await fetch(`${SERVER_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: data.email, password: data.password }),
@@ -116,7 +115,7 @@ export function SignupForm() {
         {errors.role && <p className="mt-1 text-sm text-red-600 dark:text-red-400 text-center">{errors.role.message}</p>}
       </div>
 
-      <form action={`${import.meta.env.VITE_SERVER_URL || "http://localhost:3000"}/auth/signin/google`} method="POST">
+      <form action={`${SERVER_URL}/auth/signin/google`} method="POST">
         <button
           className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-slate-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary transition-colors"
           type="submit"

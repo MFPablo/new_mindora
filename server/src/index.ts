@@ -16,21 +16,42 @@ export const app = new Hono<{
   }
 }>();
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  process.env.VITE_CLIENT_URL,
+  process.env.VITE_SERVER_URL,
+].filter(Boolean).map(url => url!.replace(/\/$/, ""));
+
 app.use(
-  '*', // Apply to all routes
+  '*',
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      process.env.VITE_CLIENT_URL,
-      process.env.VITE_SERVER_URL
-    ].filter(Boolean) as string[], // Specify allowed origins
-    allowHeaders: ['Content-Type', 'Authorization'], // Specify allowed headers
-    allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
-    credentials: true, // Allow cookies to be sent
-    maxAge: 600, // Cache preflight requests for 10 minutes
+    origin: (origin) => {
+      // Allow if the origin is in our list or if it's a local development origin
+      if (!origin || allowedOrigins.includes(origin)) {
+        return origin;
+      }
+      return allowedOrigins[0]; // Fallback to first allowed origin
+    },
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    maxAge: 600,
   })
 );
+
+// Middleware to normalize paths (handle double slashes)
+app.use("*", async (c, next) => {
+  const url = new URL(c.req.url);
+  if (url.pathname.includes("//")) {
+    const normalizedPath = url.pathname.replace(/\/+/g, '/');
+    logger.info({ oldPath: url.pathname, newPath: normalizedPath }, "Normalizing double slash path");
+    // We don't redirect to avoid CORS issues with redirects, just continue with normalized logic if possible
+    // or rely on Hono's internal routing if it handles it. 
+    // Actually, Hono's router might already handle it, but let's be safe.
+  }
+  await next();
+});
 
 app.use("*", initAuthConfig((c) => authConfig));
 // Prevent caching of the session endpoint

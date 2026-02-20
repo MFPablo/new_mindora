@@ -10,7 +10,7 @@ import bcryptjs from "bcryptjs";
 import { handle } from "hono/vercel";
 
 export const config = {
-  runtime: 'nodejs'
+  runtime: 'edge'
 };
 
 export const app = new Hono<{

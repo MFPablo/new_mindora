@@ -16,24 +16,14 @@ export const app = new Hono<{
   }
 }>();
 
-app.use(cors({
-  origin: (origin, c) => {
-    const allowedOrigins = [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      process.env.VITE_CLIENT_URL
-    ].filter(Boolean) as string[];
-
-    console.log(`Incoming Origin: ${origin}`);
-
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
-      return origin;
-    }
-
-    return allowedOrigins[0];
-  },
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: 'https://newmindora.vercel.app', // Explicitly allowed origin
+    allowHeaders: ['Content-Type', 'Authorization'], // Add any custom headers you use
+    allowMethods: ['POST', 'GET', 'OPTIONS'], // Add all necessary HTTP methods
+    credentials: true, // Set to true if your requests use cookies/auth headers
+  })
+);
 
 // @ts-ignore
 app.use("*", initAuthConfig((c) => authConfig));

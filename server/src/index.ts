@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "./logger.js";
 import { pinoLogger } from "hono-pino";
 import bcryptjs from "bcryptjs";
+import { handle } from "hono/vercel";
 
 export const app = new Hono<{
   Variables: {
@@ -959,4 +960,5 @@ export const app = new Hono<{
     }
   });
 
+export const handleVercel = handle(app);
 export default app;

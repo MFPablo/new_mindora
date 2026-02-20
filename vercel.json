@@ -10,7 +10,7 @@
       "destination": "/api"
     },
     {
-      "source": "/((?!api|auth|assets|favicon.ico).*)",
+      "source": "/((?!api|auth|assets|favicon.ico|vite.svg).*)",
       "destination": "/index.html"
     }
   ]

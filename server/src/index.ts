@@ -7,7 +7,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "./logger.js";
 import { pinoLogger } from "hono-pino";
 import bcryptjs from "bcryptjs";
-import { handle } from "hono/vercel";
+import { handle } from "@hono/node-server/vercel";
 import { cors } from "hono/cors";
 
 export const app = new Hono<{

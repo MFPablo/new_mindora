@@ -43,6 +43,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "hono": "^4.11.9"
+    "hono": "^4.11.9",
+    "server": "workspace:*",
+    "shared": "workspace:*"
   }
 }

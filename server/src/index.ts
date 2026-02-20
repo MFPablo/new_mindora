@@ -250,6 +250,9 @@ app.post("/api/login", async (c) => {
       throw new Error("AUTH_SECRET is missing");
     }
 
+    const isProd = process.env.NODE_ENV === "production";
+    const cookieName = isProd ? "__Secure-authjs.session-token" : "authjs.session-token";
+
     const token = await encode({
       token: {
         sub: user.id,
@@ -258,12 +261,10 @@ app.post("/api/login", async (c) => {
         picture: user.image,
       },
       secret,
-      salt: "authjs.session-token",
+      salt: cookieName,
     });
 
     const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
-    const isProd = process.env.NODE_ENV === "production";
-    const cookieName = isProd ? "__Secure-authjs.session-token" : "authjs.session-token";
     const cookieFlags = isProd
       ? "; Path=/; HttpOnly; SameSite=None; Secure"
       : "; Path=/; HttpOnly; SameSite=Lax";

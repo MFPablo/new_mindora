@@ -20,11 +20,11 @@ app.use(
   '*', // Apply to all routes
   cors({
     origin: [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    process.env.VITE_CLIENT_URL,
-    process.env.VITE_SERVER_URL
-  ].filter(Boolean) as string[], // Specify allowed origins
+      "http://localhost:5173",
+      "http://localhost:3000",
+      process.env.VITE_CLIENT_URL,
+      process.env.VITE_SERVER_URL
+    ].filter(Boolean) as string[], // Specify allowed origins
     allowHeaders: ['Content-Type', 'Authorization'], // Specify allowed headers
     allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
     credentials: true, // Allow cookies to be sent
@@ -262,7 +262,13 @@ app.post("/api/login", async (c) => {
     });
 
     const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
-    c.header("Set-Cookie", `authjs.session-token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`);
+    const isProd = process.env.NODE_ENV === "production";
+    const cookieName = isProd ? "__Secure-authjs.session-token" : "authjs.session-token";
+    const cookieFlags = isProd
+      ? "; Path=/; HttpOnly; SameSite=None; Secure"
+      : "; Path=/; HttpOnly; SameSite=Lax";
+
+    c.header("Set-Cookie", `${cookieName}=${token}${cookieFlags}; Max-Age=${maxAge}`);
 
     logger.info({ userId: user.id }, "Login successful");
     return c.json({
@@ -284,11 +290,16 @@ app.post("/api/login", async (c) => {
 });
 
 app.post("/api/logout", (c) => {
+  const isProd = process.env.NODE_ENV === "production";
+  const cookieFlags = isProd
+    ? "; Path=/; HttpOnly; SameSite=None; Secure; Max-Age=0"
+    : "; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+
   // Clear all variations of Auth.js session cookies
-  c.header("Set-Cookie", "authjs.session-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0", { append: true });
-  c.header("Set-Cookie", "__Secure-authjs.session-token=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0", { append: true });
-  c.header("Set-Cookie", "next-auth.session-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0", { append: true });
-  c.header("Set-Cookie", "__Secure-next-auth.session-token=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0", { append: true });
+  c.header("Set-Cookie", `authjs.session-token=${cookieFlags}`, { append: true });
+  c.header("Set-Cookie", `__Secure-authjs.session-token=${cookieFlags}`, { append: true });
+  c.header("Set-Cookie", `next-auth.session-token=${cookieFlags}`, { append: true });
+  c.header("Set-Cookie", `__Secure-next-auth.session-token=${cookieFlags}`, { append: true });
   return c.json({ success: true });
 });
 
@@ -984,7 +995,7 @@ app.get("/api/professional/appointments", async (c) => {
 
 app.onError((err, c) => {
   console.error(`[GLOBAL ERROR]: ${err.message}`, err.stack);
-  
+
   // Hardcoded CORS for errors to avoid crashes during header access
   c.header("Access-Control-Allow-Origin", "https://newmindora.vercel.app");
   c.header("Access-Control-Allow-Credentials", "true");

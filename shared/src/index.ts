@@ -1,3 +1,3 @@
-export * from "./types";
-export * from "./schemas/auth";
-export * from "./schemas/promoKey";
+export * from "./types/index.js";
+export * from "./schemas/auth.js";
+export * from "./schemas/promoKey.js";

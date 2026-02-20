@@ -3,9 +3,9 @@ import { cors } from "hono/cors";
 import { zValidator } from "@hono/zod-validator";
 import { signupSchema, type ApiResponse, type SignupInput } from "shared";
 import { authHandler, initAuthConfig, verifyAuth } from "@hono/auth-js";
-import { authConfig, prisma } from "./auth";
+import { authConfig, prisma } from "./auth.js";
 import { Prisma } from "@prisma/client";
-import { logger } from "./logger";
+import { logger } from "./logger.js";
 import { pinoLogger } from "hono-pino";
 import bcryptjs from "bcryptjs";
 

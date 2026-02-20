@@ -17,9 +17,25 @@ export const app = new Hono<{
 }>();
 
 app.use(cors({
-  origin: (origin) => {
-    const allowed = ["http://localhost:5173", "http://localhost:3000", process.env.VITE_CLIENT_URL];
-    return allowed.includes(origin) ? origin : allowed[0];
+  origin: (origin, c) => {
+    const allowedOrigins = [
+      "http://localhost:5173",
+      "http://localhost:3000",
+      process.env.VITE_CLIENT_URL
+    ].filter(Boolean) as string[];
+
+    console.log(`Incoming Origin: ${origin}`);
+
+    if (!origin || allowedOrigins.includes(origin)) {
+      return origin;
+    }
+
+    // Optional: Allow Vercel preview URLs
+    if (origin.endsWith(".vercel.app")) {
+      return origin;
+    }
+
+    return allowedOrigins[0];
   },
   credentials: true,
 }));

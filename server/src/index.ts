@@ -24,15 +24,16 @@ app.use(cors({
       process.env.VITE_CLIENT_URL
     ].filter(Boolean) as string[];
 
-    console.log(`Incoming Origin: ${origin}`);
+    // Defensive origin retrieval
+    const incomingOrigin = origin || c.req.header("origin") || (c.req.raw as any)?.headers?.origin;
+    console.log(`Incoming Origin: ${incomingOrigin}`);
 
-    if (!origin || allowedOrigins.includes(origin)) {
-      return origin;
+    if (!incomingOrigin || allowedOrigins.includes(incomingOrigin)) {
+      return incomingOrigin;
     }
 
-    // Optional: Allow Vercel preview URLs
-    if (origin.endsWith(".vercel.app")) {
-      return origin;
+    if (incomingOrigin.endsWith(".vercel.app")) {
+      return incomingOrigin;
     }
 
     return allowedOrigins[0];
@@ -993,8 +994,14 @@ app.get("/api/professional/appointments", async (c) => {
 app.onError((err, c) => {
   console.error(`[GLOBAL ERROR]: ${err.message}`, err.stack);
   
-  // Ensure CORS headers are present even on errors
-  const origin = c.req.header("Origin");
+  // Extra defensive header retrieval
+  let origin;
+  try {
+    origin = c.req.header("Origin") || (c.req.raw as any)?.headers?.origin;
+  } catch {
+    origin = (c.req.raw as any)?.headers?.origin;
+  }
+
   if (origin) {
     c.header("Access-Control-Allow-Origin", origin);
     c.header("Access-Control-Allow-Credentials", "true");

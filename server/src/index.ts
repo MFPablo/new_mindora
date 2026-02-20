@@ -79,7 +79,7 @@ app.use("/api/*", async (c, next) => {
 
   const { decode } = await import("@auth/core/jwt");
   // Defensive cookie retrieval
-  const cookie = (c.req.raw as any).headers?.cookie || "";
+  const cookie = c.req.header("cookie") || "";
   // Detect Auth.js or NextAuth.js tokens (handling __Secure- prefix)
   const tokenMatch = cookie.match(/((?:__Secure-)?(?:authjs|next-auth)\.session-token)=([^;]+)/);
 
@@ -689,17 +689,16 @@ app.get("/api/professional/:id/public", async (c) => {
 
 
 app.put("/api/professional/profile-settings", async (c) => {
-  const { decode } = await import("@auth/core/jwt");
-  const cookie = c.req.header("Cookie") || "";
-  const match = cookie.match(/authjs\.session-token=([^;]+)/);
-  if (!match) return c.json({ success: false, message: "No autenticado" }, 401);
+  const userId = c.get("userId" as any);
+  const role = c.get("userRole" as any);
 
-  const token = await decode({ token: match[1], secret: process.env.AUTH_SECRET!, salt: "authjs.session-token" });
-  if (!token?.sub) return c.json({ success: false, message: "Token inválido" }, 401);
-
-  const user = await prisma.user.findUnique({ where: { id: token.sub } });
-  if (!user || user.role !== "professional") {
+  if (!userId || role !== "professional") {
     return c.json({ success: false, message: "Solo profesionales pueden actualizar estos ajustes" }, 403);
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    return c.json({ success: false, message: "Usuario no encontrado" }, 404);
   }
 
   const body = await c.req.json();
@@ -719,7 +718,7 @@ app.put("/api/professional/profile-settings", async (c) => {
     dataToUpdate.isProfileEnabled = isEnabled;
 
     const updatedUser = await prisma.user.update({
-      where: { id: token.sub },
+      where: { id: userId },
       data: dataToUpdate,
       select: {
         id: true,

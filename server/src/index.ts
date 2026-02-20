@@ -19,7 +19,7 @@ export const app = new Hono<{
 app.use(
   cors({
     origin: 'https://newmindora.vercel.app', // Explicitly allowed origin
-    allowHeaders: ['Content-Type', 'Authorization'], // Add any custom headers you use
+    allowHeaders: ['Content-Type', 'Authorization','Access-Control-Allow-Origin'], // Add any custom headers you use
     allowMethods: ['POST', 'GET', 'OPTIONS'], // Add all necessary HTTP methods
     credentials: true, // Set to true if your requests use cookies/auth headers
   })

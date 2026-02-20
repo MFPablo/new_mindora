@@ -10,8 +10,8 @@
       "destination": "/api"
     },
     {
-      "source": "/(.*)",
-      "destination": "/$1"
+      "source": "/((?!api|auth|assets|favicon.ico).*)",
+      "destination": "/index.html"
     }
   ]
 }

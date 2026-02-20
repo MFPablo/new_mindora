@@ -63,6 +63,10 @@ app.get("/", (c) => {
   return c.text("Hello Hono!");
 });
 
+app.get("/health", (c) => {
+  return c.json({ status: "ok", time: new Date().toISOString() });
+});
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 app.get("/protected", verifyAuth() as any, (c) => {
   const auth = c.get("authUser");
@@ -984,6 +988,23 @@ app.get("/api/professional/appointments", async (c) => {
     logger.error({ error }, "Error fetching professional appointments");
     return c.json({ success: false, message: "Error al obtener la agenda" }, 500);
   }
+});
+
+app.onError((err, c) => {
+  console.error(`[GLOBAL ERROR]: ${err.message}`, err.stack);
+  
+  // Ensure CORS headers are present even on errors
+  const origin = c.req.header("Origin");
+  if (origin) {
+    c.header("Access-Control-Allow-Origin", origin);
+    c.header("Access-Control-Allow-Credentials", "true");
+  }
+
+  return c.json({
+    success: false,
+    message: "Internal Server Error",
+    error: process.env.NODE_ENV === "development" ? err.message : undefined
+  }, 500);
 });
 
 export const handleVercel = handle(app);

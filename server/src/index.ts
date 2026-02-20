@@ -1,5 +1,4 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
+import { Hono, type Context, type Next } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { signupSchema, type ApiResponse, type SignupInput } from "shared";
 import { authHandler, initAuthConfig, verifyAuth } from "@hono/auth-js";
@@ -16,35 +15,44 @@ export const app = new Hono<{
   }
 }>();
 
-app.use(cors({
-  origin: (origin, c) => {
-    const allowedOrigins = [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      process.env.VITE_CLIENT_URL
-    ].filter(Boolean) as string[];
-
-    // Defensive origin retrieval
-    const incomingOrigin = origin || c.req.header("origin") || (c.req.raw as any)?.headers?.origin;
-    console.log(`Incoming Origin: ${incomingOrigin}`);
-
-    if (!incomingOrigin || allowedOrigins.includes(incomingOrigin)) {
-      return incomingOrigin;
+app.use("*", async (c: Context, next: Next) => {
+  // Defensive way to get headers from Node.js or Web Standard requests
+  const rawRequest = c.req.raw as any;
+  const getHeader = (name: string) => {
+    try {
+      return c.req.header(name) || rawRequest.headers?.[name.toLowerCase()];
+    } catch {
+      return rawRequest.headers?.[name.toLowerCase()];
     }
+  };
 
-    if (incomingOrigin.endsWith(".vercel.app")) {
-      return incomingOrigin;
-    }
+  const incomingOrigin = getHeader("origin");
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    process.env.VITE_CLIENT_URL
+  ].filter(Boolean) as string[];
 
-    return allowedOrigins[0];
-  },
-  credentials: true,
-}));
+  let resultOrigin = allowedOrigins[0];
+  if (!incomingOrigin || allowedOrigins.includes(incomingOrigin) || incomingOrigin.endsWith(".vercel.app")) {
+    resultOrigin = incomingOrigin || "*";
+  }
+
+  c.header("Access-Control-Allow-Origin", resultOrigin);
+  c.header("Access-Control-Allow-Credentials", "true");
+  c.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Cookie");
+
+  if (c.req.method === "OPTIONS") {
+    return c.body(null, 204);
+  }
+
+  await next();
+});
 
 // @ts-ignore
 app.use("*", initAuthConfig((c) => authConfig));
-// Prevent caching of the session endpoint
-app.use("/auth/session", async (c, next) => {
+app.use("/auth/session", async (c: Context, next: Next) => {
   await next();
   c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   c.header("Pragma", "no-cache");
@@ -58,7 +66,7 @@ app.use("*", pinoLogger({
   http: {
     reqId: () => crypto.randomUUID(),
   },
-}));
+}) as any);
 
 app.get("/", (c) => {
   return c.text("Hello Hono!");
@@ -88,7 +96,8 @@ app.use("/api/*", async (c, next) => {
   const isPublicRoute = c.req.path.includes("/public");
 
   const { decode } = await import("@auth/core/jwt");
-  const cookie = c.req.header("Cookie") || "";
+  // Defensive cookie retrieval
+  const cookie = (c.req.raw as any).headers?.cookie || "";
   // Detect Auth.js or NextAuth.js tokens (handling __Secure- prefix)
   const tokenMatch = cookie.match(/((?:__Secure-)?(?:authjs|next-auth)\.session-token)=([^;]+)/);
 
@@ -997,9 +1006,10 @@ app.onError((err, c) => {
   // Extra defensive header retrieval
   let origin;
   try {
-    origin = c.req.header("Origin") || (c.req.raw as any)?.headers?.origin;
+    const rawReq = c.req.raw as any;
+    origin = rawReq.headers?.origin || rawReq.headers?.["origin"];
   } catch {
-    origin = (c.req.raw as any)?.headers?.origin;
+    // Ignore
   }
 
   if (origin) {

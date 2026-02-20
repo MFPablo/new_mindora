@@ -188,64 +188,81 @@ export const app = new Hono<{
   })
 
   .post("/api/login", async (c) => {
-    const body = await c.req.json();
-    const { email, password, rememberMe } = body;
+    try {
+      logger.info("Login attempt started");
+      const body = await c.req.json();
+      const { email, password, rememberMe } = body;
 
-    if (!email || !password) {
-      return c.json({ success: false, message: "Email y contraseña requeridos" }, 400);
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        password: true,
-        image: true,
-        role: true,
-        onboardingStep: true,
+      if (!email || !password) {
+        return c.json({ success: false, message: "Email y contraseña requeridos" }, 400);
       }
-    });
 
-    if (!user || !user.password) {
-      return c.json({ success: false, message: "Credenciales inválidas" }, 401);
+      logger.info({ email }, "Fetching user from DB");
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          password: true,
+          image: true,
+          role: true,
+          onboardingStep: true,
+        }
+      });
+
+      if (!user || !user.password) {
+        logger.warn({ email }, "User not found or no password");
+        return c.json({ success: false, message: "Credenciales inválidas" }, 401);
+      }
+
+      logger.info("Comparing passwords");
+      const isValid = await bcryptjs.compare(password, user.password);
+      if (!isValid) {
+        logger.warn({ email }, "Invalid password");
+        return c.json({ success: false, message: "Credenciales inválidas" }, 401);
+      }
+
+      logger.info("Encoding session token");
+      const { encode } = await import("@auth/core/jwt");
+      const secret = process.env.AUTH_SECRET;
+
+      if (!secret) {
+        logger.error("AUTH_SECRET is missing");
+        throw new Error("AUTH_SECRET is missing");
+      }
+
+      const token = await encode({
+        token: {
+          sub: user.id,
+          name: user.name,
+          email: user.email,
+          picture: user.image,
+        },
+        secret,
+        salt: "authjs.session-token",
+      });
+
+      const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
+      c.header("Set-Cookie", `authjs.session-token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`);
+
+      logger.info({ userId: user.id }, "Login successful");
+      return c.json({
+        success: true,
+        message: "Login exitoso",
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role: user.role,
+          onboardingStep: user.onboardingStep,
+        },
+      });
+    } catch (error: any) {
+      logger.error({ error: error.message, stack: error.stack }, "Login route error");
+      return c.json({ success: false, message: "Error interno del servidor", error: error.message }, 500);
     }
-
-    const isValid = await bcryptjs.compare(password, user.password);
-    if (!isValid) {
-      return c.json({ success: false, message: "Credenciales inválidas" }, 401);
-    }
-
-    const { encode } = await import("@auth/core/jwt");
-    const secret = process.env.AUTH_SECRET!;
-
-    const token = await encode({
-      token: {
-        sub: user.id,
-        name: user.name,
-        email: user.email,
-        picture: user.image,
-      },
-      secret,
-      salt: "authjs.session-token",
-    });
-
-    const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
-    c.header("Set-Cookie", `authjs.session-token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`);
-
-    return c.json({
-      success: true,
-      message: "Login exitoso",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        role: user.role,
-        onboardingStep: user.onboardingStep,
-      },
-    });
   })
 
   .post("/api/logout", (c) => {

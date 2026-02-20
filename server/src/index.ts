@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { zValidator } from "@hono/zod-validator";
 import { signupSchema, type ApiResponse, type SignupInput } from "shared";
 import { authHandler, initAuthConfig, verifyAuth } from "@hono/auth-js";
@@ -9,6 +8,7 @@ import { logger } from "./logger.js";
 import { pinoLogger } from "hono-pino";
 import bcryptjs from "bcryptjs";
 import { handle } from "hono/vercel";
+import { cors } from "hono/cors";
 
 export const app = new Hono<{
   Variables: {
@@ -17,15 +17,21 @@ export const app = new Hono<{
 }>();
 
 app.use(
+  '*', // Apply to all routes
   cors({
-    origin: 'https://newmindora.vercel.app', // Explicitly allowed origin
-    allowHeaders: ['Content-Type', 'Authorization','Access-Control-Allow-Origin'], // Add any custom headers you use
-    allowMethods: ['POST', 'GET', 'OPTIONS'], // Add all necessary HTTP methods
-    credentials: true, // Set to true if your requests use cookies/auth headers
+    origin: [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    process.env.VITE_CLIENT_URL,
+    process.env.VITE_SERVER_URL
+  ].filter(Boolean) as string[], // Specify allowed origins
+    allowHeaders: ['Content-Type', 'Authorization'], // Specify allowed headers
+    allowMethods: ['POST', 'GET', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
+    credentials: true, // Allow cookies to be sent
+    maxAge: 600, // Cache preflight requests for 10 minutes
   })
 );
 
-// @ts-ignore
 app.use("*", initAuthConfig((c) => authConfig));
 // Prevent caching of the session endpoint
 app.use("/auth/session", async (c, next) => {
@@ -979,12 +985,9 @@ app.get("/api/professional/appointments", async (c) => {
 app.onError((err, c) => {
   console.error(`[GLOBAL ERROR]: ${err.message}`, err.stack);
   
-  // Ensure CORS headers are present even on errors
-  const origin = c.req.header("Origin");
-  if (origin) {
-    c.header("Access-Control-Allow-Origin", origin);
-    c.header("Access-Control-Allow-Credentials", "true");
-  }
+  // Hardcoded CORS for errors to avoid crashes during header access
+  c.header("Access-Control-Allow-Origin", "https://newmindora.vercel.app");
+  c.header("Access-Control-Allow-Credentials", "true");
 
   return c.json({
     success: false,

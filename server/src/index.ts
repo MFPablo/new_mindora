@@ -9,6 +9,10 @@ import { pinoLogger } from "hono-pino";
 import bcryptjs from "bcryptjs";
 import { handle } from "hono/vercel";
 
+export const config = {
+  runtime: 'nodejs'
+};
+
 export const app = new Hono<{
   Variables: {
     authUser: any
